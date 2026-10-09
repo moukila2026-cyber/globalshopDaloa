@@ -1829,6 +1829,25 @@ footer {
   display: grid;
   place-items: center;
 }
+.success-brand {
+  display: grid;
+  place-items: center;
+  height: 46px;
+}
+.success-brand .brand-logo {
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
+}
+.success-brand .brand-symbol {
+  width: 38px;
+  margin-top: -7px;
+  font-size: 48px;
+}
+.success-brand .brand-symbol > span {
+  top: 11px;
+  font-size: 22px;
+}
 .order-success h3 {
   font-family: "Cormorant Garamond", serif;
   font-size: 32px;

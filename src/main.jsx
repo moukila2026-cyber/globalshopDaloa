@@ -1143,7 +1143,13 @@ function App() {
                 onTouchStart={handleLightboxTouchStart}
                 onTouchEnd={handleLightboxTouchEnd}
                 onMouseDown={(e) => {
-                  if (e.target === e.currentTarget) setLightbox(null);
+                  const target = e.target;
+                  const onBackdrop =
+                    target === e.currentTarget ||
+                    target.classList.contains("lightbox-stage") ||
+                    target.classList.contains("lightbox-figure") ||
+                    target.classList.contains("lightbox-artwork");
+                  if (onBackdrop) setLightbox(null);
                 }}
               >
                 <h2 id="lightbox-title" className="sr-only">
@@ -1541,6 +1547,9 @@ function App() {
                     </div>
                     {success ? (
                       <div className="order-success">
+                        <span className="success-brand">
+                          <BrandLogo />
+                        </span>
                         <span className="success-icon">
                           <Check size={36} />
                         </span>
