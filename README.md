@@ -23,31 +23,39 @@ npm start         # production locale, sert dist/ (DATABASE_URL requis)
 ## Fonctionnalités
 
 - Quatre collections, recherche, filtres catégories/promotions/favoris et tri.
-- Fiches produits, galeries, caractéristiques et avis illustratifs.
+- Fiches produits, galeries plein écran (clavier/tactile), caractéristiques et avis illustratifs.
 - Panier et favoris locaux persistants, frais de livraison calculés.
 - Livraison Daloa/Bouaké, formulaire et confirmation de commande sans compte.
 - Paiement en espèces à la livraison, enregistrement PostgreSQL et référence de commande.
 - Inventaire transactionnel, anti-doublons par clé idempotente, recalcul serveur des prix.
 - Responsive, navigation clavier des dialogues, réduction des animations, polices auto-hébergées.
 
+## Images et identité visuelle
+
+- Chaque produit référence deux illustrations locales nommées `public/images/products/<id>.svg` et `public/images/products/<id>-extra.svg`. Les références vivent dans `shared/products.js`; le repli d’image est `public/images/products/produit-indisponible.svg`.
+- Les illustrations produit ont été dessinées spécialement en SVG dans ce dépôt et sont reproductibles avec `node scripts/generate-product-illustrations.mjs`. Aucun service d’images ni photo de stock externe n’est utilisé : aucune attribution Unsplash n’est requise pour ces nouveaux visuels. Ce sont des illustrations de démonstration, pas des photos contractuelles des produits.
+- Les collections réutilisent ces fichiers locaux ; le hero et la section histoire utilisent l’image locale `public/images/hero.png`. Cette image de couverture préexistante est notée comme générée dans l’ancien README ; vérifier sa provenance et son autorisation d’usage commercial avant ouverture.
+- Le logo officiel n’a pas encore été fourni. Déposer le SVG dans `public/images/logo.svg` (emplacement par défaut), configuré dans `src/brand.js`. Pour un PNG haute résolution, déposer le fichier dans `public/images/` et changer `BRAND_LOGO_PATH` dans ce même fichier. Le composant partagé l’affiche dans l’en-tête et le pied de page avec le texte alternatif « Logo Global Shop Daloa » ; le favicon pointe automatiquement vers le logo chargé. `public/favicon.svg` reste le favicon de repli tant que le logo manque.
+- Si une nouvelle source d’images distante est ajoutée un jour, garder `img-src` explicite dans `server/app.js` et n’autoriser que les domaines nécessaires.
+
 ## Architecture
 
-| Élément | Fichier |
-| --- | --- |
-| Application Express (API + protections) | `server/app.js` |
-| Stockage PostgreSQL, schéma, transactions | `server/store.js` |
-| Logique de commande et validation Zod | `server/orders.js` |
-| Serveur local / production Node | `server/index.js` |
-| Fonction serverless Vercel | `api/index.js` (routes `/api/*` via `vercel.json`) |
-| Import ponctuel depuis l'ancien SQLite | `scripts/import-sqlite.js` (`npm run db:import-sqlite`) |
+| Élément                                   | Fichier                                                 |
+| ----------------------------------------- | ------------------------------------------------------- |
+| Application Express (API + protections)   | `server/app.js`                                         |
+| Stockage PostgreSQL, schéma, transactions | `server/store.js`                                       |
+| Logique de commande et validation Zod     | `server/orders.js`                                      |
+| Serveur local / production Node           | `server/index.js`                                       |
+| Fonction serverless Vercel                | `api/index.js` (routes `/api/*` via `vercel.json`)      |
+| Import ponctuel depuis l'ancien SQLite    | `scripts/import-sqlite.js` (`npm run db:import-sqlite`) |
 
 Le frontend est compilé dans `dist/` et servi en statique. Sur Vercel, les routes non-API renvoient vers `index.html` (SPA).
 
 ## Déploiement sur Vercel avec Neon
 
 1. **Créer la base Neon** : projet Neon dans la région la plus proche, puis copier la chaîne de connexion **pooled** (hôte contenant `-pooler`, avec `sslmode=require`). Ne jamais la committer.
-2. **Importer le dépôt sur Vercel** : *Add New → Project*, puis sélectionner `moukila2026-cyber/globalshopDaloa`. Le fichier `vercel.json` fixe le build (`npm run build`), la sortie (`dist`) et les réécritures. Vite est détecté automatiquement.
-3. **Variables d'environnement** (Project Settings → Environment Variables, environnement *Production*) :
+2. **Importer le dépôt sur Vercel** : _Add New → Project_, puis sélectionner `moukila2026-cyber/globalshopDaloa`. Le fichier `vercel.json` fixe le build (`npm run build`), la sortie (`dist`) et les réécritures. Vite est détecté automatiquement.
+3. **Variables d'environnement** (Project Settings → Environment Variables, environnement _Production_) :
    - `DATABASE_URL` : chaîne Neon pooled (obligatoire).
    - `PUBLIC_ORIGIN` : origine HTTPS exacte, par exemple `https://globalshop.example`, sans slash final. Obligatoire pour que les POST soient acceptés depuis le domaine public.
    - `PG_POOL_MAX` : optionnel, `5` par défaut.
@@ -77,7 +85,7 @@ Sans commande réelle dans SQLite, cette étape est inutile : la base est initia
 
 Les commandes sont stockées dans PostgreSQL (table `orders`, payload JSONB, contrainte UNIQUE sur `request_id` pour l'idempotence). Le stock est dans la table `stock` avec `CHECK (quantity >= 0)`. La réservation de stock et la création de commande se font dans une seule transaction ; les lignes sont verrouillées dans un ordre fixe pour éviter les interblocages. Les requêtes utilisent des paramètres SQL et Zod pour la validation. L'API ne publie jamais les coordonnées ou commandes (`GET /api/orders` renvoie 404).
 
-Protections conservées à l'identique : Helmet, CSP et HSTS en production, `frame-ancestors 'self'`, limitation de débit (100 req/min sur `/api`, 15 commandes / 15 min), limite du corps JSON à 16 Ko, vérification d'origine et de `Sec-Fetch-Site` sur les écritures, exigence `application/json`, recalcul serveur des prix, `Cache-Control: no-store` sur l'API. Pas d'identifiants Supabase, pas de données bancaires ni de suivi publicitaire.
+Protections conservées : Helmet, CSP et HSTS en production, `frame-ancestors 'self'`, `img-src 'self'` (images locales uniquement), limitation de débit (100 req/min sur `/api`, 15 commandes / 15 min), limite du corps JSON à 16 Ko, vérification d'origine et de `Sec-Fetch-Site` sur les écritures, exigence `application/json`, recalcul serveur des prix, `Cache-Control: no-store` sur l'API. Pas d'identifiants Supabase, pas de données bancaires ni de suivi publicitaire.
 
 Points spécifiques à PostgreSQL et Vercel :
 
@@ -95,11 +103,12 @@ Points spécifiques à PostgreSQL et Vercel :
 
 Cette version est une démonstration fonctionnelle, pas une boutique déjà opérationnelle :
 
-1. Confirmer ou remplacer les produits, caractéristiques, stocks, prix et images dans `shared/products.js`. Les images Unsplash sont externes ; l'image de couverture locale est générée et sert de repli. Vérifier licences et correspondance réelle des photos.
-2. Remplacer les avis de démonstration par des avis authentiques ; aucune mention « achat vérifié » n'est utilisée.
-3. Renseigner identité légale, contacts, CGV, délais/retours, responsable de traitement et durée de conservation dans les contenus d'information de `src/main.jsx`.
-4. Organiser le traitement des commandes : les commandes sont enregistrées mais aucun SMS/e-mail n'est envoyé et aucune interface d'administration n'est fournie. L'opérateur doit accéder aux commandes de manière sécurisée (SQL Neon avec accès restreint). Ajouter une administration authentifiée avec rôles avant de déléguer cette gestion.
-5. Connecter un prestataire agréé pour Wave/Orange/MTN si souhaité : les paiements Mobile Money ne sont pas simulés. Prévoir webhooks signés et vérification serveur.
-6. Configurer sauvegardes Neon, supervision (logs Vercel, alertes sur `/api/health`) et processus de confirmation/livraison. Les stocks sont réservés immédiatement ; une gestion d'annulation/restitution doit être ajoutée pour l'exploitation.
+1. Confirmer ou remplacer les produits, caractéristiques, stocks, prix et images dans `shared/products.js`. Les 16 nouveaux visuels produit sont des illustrations SVG locales originales, sans photos de stock tierces ; vérifier qu’elles représentent fidèlement les articles vendus et les remplacer par des photos autorisées si nécessaire. Vérifier également la provenance commerciale de `public/images/hero.png` avant l’ouverture.
+2. Déposer le logo officiel dans `public/images/logo.svg` ou ajuster `BRAND_LOGO_PATH` dans `src/brand.js` pour un PNG haute résolution. Contrôler le rendu dans l’en-tête, le pied de page et le favicon ; aucun fichier logo n’était fourni lors de cette mise à jour.
+3. Remplacer les avis de démonstration par des avis authentiques ; aucune mention « achat vérifié » n'est utilisée.
+4. Renseigner identité légale, contacts, CGV, délais/retours, responsable de traitement et durée de conservation dans les contenus d'information de `src/main.jsx`.
+5. Organiser le traitement des commandes : les commandes sont enregistrées mais aucun SMS/e-mail n'est envoyé et aucune interface d'administration n'est fournie. L'opérateur doit accéder aux commandes de manière sécurisée (SQL Neon avec accès restreint). Ajouter une administration authentifiée avec rôles avant de déléguer cette gestion.
+6. Connecter un prestataire agréé pour Wave/Orange/MTN si souhaité : les paiements Mobile Money ne sont pas simulés. Prévoir webhooks signés et vérification serveur.
+7. Configurer sauvegardes Neon, supervision (logs Vercel, alertes sur `/api/health`) et processus de confirmation/livraison. Les stocks sont réservés immédiatement ; une gestion d'annulation/restitution doit être ajoutée pour l'exploitation.
 
 Le stock initial est inséré uniquement lors du premier lancement (ligne absente). Modifier `shared/products.js` ne réinitialise pas les stocks déjà enregistrés. Ne supprimer la base (ou une branche Neon) qu'en développement si aucune commande réelle n'y figure.

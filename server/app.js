@@ -15,7 +15,7 @@ export function createApp({store, production = false, frontend} = {}) {
   if (process.env.TRUST_PROXY === '1' || process.env.VERCEL === '1') app.set('trust proxy', 1);
   app.use(helmet({contentSecurityPolicy: production ? {directives: {
     defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"],
-    imgSrc: ["'self'", 'https://images.unsplash.com', 'data:'], fontSrc: ["'self'"],
+    imgSrc: ["'self'"], fontSrc: ["'self'"],
     connectSrc: ["'self'"], frameAncestors: ["'self'"], upgradeInsecureRequests: []
   }} : false, crossOriginEmbedderPolicy: false, frameguard: production ? {action: 'sameorigin'} : false, strictTransportSecurity: production}));
   app.use('/api', rateLimit({windowMs: 60000, limit: 100, standardHeaders: 'draft-8', legacyHeaders: false}));

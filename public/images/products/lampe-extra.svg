@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1060" role="img" aria-labelledby="title description">
+  <title id="title">Lampe de table Alma — Vue détaillée</title>
+  <desc id="description">Illustration vectorielle originale du produit Lampe de table Alma, réalisée pour la maquette Global Shop Daloa.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5f0e6"/><stop offset="1" stop-color="#e9e0d1"/></linearGradient>
+    <linearGradient id="material" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5f0e6"/><stop offset=".48" stop-color="#c7a676"/><stop offset="1" stop-color="#53564a"/></linearGradient>
+    <radialGradient id="softLight"><stop stop-color="#fff" stop-opacity=".62"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="softShadow" x="-.3" y="-.3" width="1.6" height="1.8"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="900" height="1060" fill="url(#canvas)"/>
+  <ellipse cx="450" cy="505" rx="360" ry="390" fill="url(#softLight)"/>
+  <path d="M0 832q212-99 450-49 240 48 450-17v294H0z" fill="#ffffff" opacity=".17"/>
+  <path d="M87 114h726M87 144h125" stroke="#6b685b" stroke-opacity=".18" stroke-width="2"/>
+  <text x="87" y="98" fill="#525e50" fill-opacity=".76" font-family="Arial,sans-serif" font-size="15" letter-spacing="4">GLOBAL SHOP · SÉLECTION</text>
+  <ellipse cx="450" cy="852" rx="246" ry="45" fill="#3c3329" opacity=".17" filter="url(#softShadow)"/>
+  <rect x="181" y="835" width="538" height="86" rx="15" fill="#fffdf7" opacity=".36"/>
+  <path d="M181 854q269 30 538 0" stroke="#fff" stroke-opacity=".6" stroke-width="3" fill="none"/>
+<circle cx="450" cy="477" r="205" fill="#f0c66f" opacity=".19"/>
+      <g transform="rotate(-7 450 560)">
+        <path d="M450 277v448" stroke="#a78960" stroke-width="18" stroke-linecap="round"/>
+        <path d="M265 430q36-186 185-186t185 186z" fill="url(#material)" stroke="#887557" stroke-width="5"/>
+        <path d="M265 430q185 27 370 0" fill="none" stroke="#f9edcf" stroke-width="9"/>
+        <path d="M353 732q97-31 194 0l31 60q-128 39-256 0z" fill="#c4a577" stroke="#897552" stroke-width="5"/>
+        <path d="M376 777q74 20 148 0" fill="none" stroke="#e6d3b0" stroke-width="5"/>
+      </g>
+      <path d="M690 404v133m-23-110h46" stroke="#927c5f" stroke-width="4" opacity=".56"/>
+  <path d="M87 961h726" stroke="#5a5c50" stroke-opacity=".22" stroke-width="2"/>
+  <text x="87" y="997" fill="#596052" fill-opacity=".78" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">DALOA · BIEN CHOISI, TOUT PRÈS DE VOUS</text>
+  <text x="812" y="997" text-anchor="end" fill="#596052" fill-opacity=".62" font-family="Arial,sans-serif" font-size="12" letter-spacing="2">LAMPE</text>
+</svg>

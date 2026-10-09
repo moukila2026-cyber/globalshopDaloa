@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1060" role="img" aria-labelledby="title description">
+  <title id="title">Vase céramique Terra — Vue détaillée</title>
+  <desc id="description">Illustration vectorielle originale du produit Vase céramique Terra, réalisée pour la maquette Global Shop Daloa.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6eee5"/><stop offset="1" stop-color="#ebded2"/></linearGradient>
+    <linearGradient id="material" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6eee5"/><stop offset=".48" stop-color="#b77551"/><stop offset="1" stop-color="#794b38"/></linearGradient>
+    <radialGradient id="softLight"><stop stop-color="#fff" stop-opacity=".62"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="softShadow" x="-.3" y="-.3" width="1.6" height="1.8"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="900" height="1060" fill="url(#canvas)"/>
+  <ellipse cx="450" cy="505" rx="360" ry="390" fill="url(#softLight)"/>
+  <path d="M0 832q212-99 450-49 240 48 450-17v294H0z" fill="#ffffff" opacity=".17"/>
+  <path d="M87 114h726M87 144h125" stroke="#6b685b" stroke-opacity=".18" stroke-width="2"/>
+  <text x="87" y="98" fill="#525e50" fill-opacity=".76" font-family="Arial,sans-serif" font-size="15" letter-spacing="4">GLOBAL SHOP · SÉLECTION</text>
+  <ellipse cx="450" cy="852" rx="246" ry="45" fill="#3c3329" opacity=".17" filter="url(#softShadow)"/>
+  <rect x="181" y="835" width="538" height="86" rx="15" fill="#fffdf7" opacity=".36"/>
+  <path d="M181 854q269 30 538 0" stroke="#fff" stroke-opacity=".6" stroke-width="3" fill="none"/>
+<path d="M416 289h68v94q0 32 33 66 91 94 75 232-17 137-176 137T240 681q-16-138 75-232 33-34 33-66v-94z" fill="url(#material)" stroke="#8c5940" stroke-width="5"/>
+      <ellipse cx="450" cy="291" rx="34" ry="10" fill="#8d5b42"/>
+      <path d="M343 520q107 47 214 0m-228 81q121 39 242 0m-235 73q110 34 220 0" fill="none" stroke="#e2b08d" stroke-width="5" opacity=".72"/>
+      <path d="M451 293v-127m0 110q-53-71-89-123m88 142q63-86 107-137" fill="none" stroke="#5c7555" stroke-width="8" stroke-linecap="round"/>
+      <path d="M450 210q-47-78-110-44 20 69 110 73m1-5q61-88 124-50-18 79-124 83" fill="#7f966c" stroke="#617b59" stroke-width="4"/>
+      <path d="M451 184q-8-56 38-88 43 48-17 107" fill="#9aab7c" stroke="#617b59" stroke-width="4"/>
+  <path d="M87 961h726" stroke="#5a5c50" stroke-opacity=".22" stroke-width="2"/>
+  <text x="87" y="997" fill="#596052" fill-opacity=".78" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">DALOA · BIEN CHOISI, TOUT PRÈS DE VOUS</text>
+  <text x="812" y="997" text-anchor="end" fill="#596052" fill-opacity=".62" font-family="Arial,sans-serif" font-size="12" letter-spacing="2">VASE</text>
+</svg>
