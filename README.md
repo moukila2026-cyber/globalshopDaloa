@@ -32,8 +32,9 @@ npm start         # production locale, sert dist/ (DATABASE_URL requis)
 
 ## Images et identité visuelle
 
-- Les images du catalogue restent locales et sont référencées dans `shared/products.js`; l’image de repli est `public/images/products/produit-indisponible.svg`. Le casque et le sac utilisent désormais des photos Pexels copiées dans `public/images/products/` (la licence Pexels permet l’usage commercial sous ses conditions). Les autres produits utilisent les illustrations SVG originales générées par `node scripts/generate-product-illustrations.mjs`.
-- Sources des photos : casque, Pexels [`747438`](https://www.pexels.com/photo/white-wireless-headphones-747438/) (PublicDomainPNG.com) et [`3394666`](https://www.pexels.com/photo/white-cordless-headphone-3394666/) (Sound On) ; sac, [`27046147`](https://www.pexels.com/photo/leather-bags-in-a-studio-27046147/) (José Martin Segura Benites) et [`23223851`](https://www.pexels.com/photo/gray-bag-with-handles-23223851/) (Muneeb Malhotra). Utilisation sous [licence Pexels](https://www.pexels.com/license/) ; voir `public/images/README.md`. Ce sont des visuels de référence non contractuels, pas la preuve que l’article exact est en stock.
+- Les images du catalogue restent locales et sont référencées dans `shared/products.js`; l’image de repli est `public/images/products/produit-indisponible.svg`. Les huit produits affichent désormais **deux photos** (`<id>.jpg` et `<id>-extra.jpg`) servies depuis `public/images/products/` : JPEG 5:6 (800 × 960), qualité 84, fond blanc studio, sujet recadré et centré sans déformation. Les anciennes illustrations SVG du catalogue ont été supprimées, et le script `scripts/generate-product-illustrations.mjs` avec elles.
+- Les photos sont (re)générées par `npm run photos:build` (`scripts/build-product-photos.mjs`) à partir des originaux déposés dans `sources/` (dossier non versionné).
+- Sources des photos : toutes proviennent de Pexels, sous [licence Pexels](https://www.pexels.com/license/) (usage commercial autorisé, attribution non obligatoire). Le tableau complet fichier → photo → photographe → licence est dans `public/images/README.md`. Ce sont des visuels de référence non contractuels, pas la preuve que l’article exact est en stock.
 - Prix repères consultés le 9 octobre 2026 : casque à `12 900 FCFA`, comparable aux offres [Djokstore](https://djokstore.ci/collections/casques) et [Jumia](https://www.jumia.ci/mlp-casque-bluetooth/) ; sac à `9 200 FCFA`, dans la fourchette des [sacs bandoulière listés sur Jumia Côte d’Ivoire](https://www.jumia.ci/sacs-main-portefeuilles-sacs-bandouliere/). Les offres sont variables et les modèles ne sont pas identifiés par les photos : ces prix ne sont pas des devis fournisseur.
 - Les quantités de départ (18 casques, 12 sacs) sont des stocks de démonstration. Le catalogue lit le stock courant en base PostgreSQL; l’initialisation insère les valeurs de `shared/products.js` uniquement pour les références absentes et n’écrase jamais un stock déjà enregistré. Confirmer ces quantités dans Neon avant la vente.
 - Le hero et la section histoire utilisent l’image locale préexistante `public/images/hero.png`. Vérifier sa provenance et son autorisation commerciale avant ouverture.
@@ -50,6 +51,7 @@ npm start         # production locale, sert dist/ (DATABASE_URL requis)
 | Serveur local / production Node           | `server/index.js`                                       |
 | Fonction serverless Vercel                | `api/index.js` (routes `/api/*` via `vercel.json`)      |
 | Import ponctuel depuis l'ancien SQLite    | `scripts/import-sqlite.js` (`npm run db:import-sqlite`) |
+| Génération des photos produit (5:6, 800×960) | `scripts/build-product-photos.mjs` (`npm run photos:build`, sources dans `sources/`) |
 
 Le frontend est compilé dans `dist/` et servi en statique. Sur Vercel, les routes non-API renvoient vers `index.html` (SPA).
 
@@ -105,7 +107,7 @@ Points spécifiques à PostgreSQL et Vercel :
 
 Cette version est une démonstration fonctionnelle, pas une boutique déjà opérationnelle :
 
-1. Confirmer ou remplacer les produits, caractéristiques, stocks, prix et images dans `shared/products.js`. Les photos du casque et du sac sont des visuels Pexels de référence ; les références réelles sont à confirmer. Les stocks de démonstration de 18 et 12 doivent être remplacés ou validés dans PostgreSQL avant la vente. Revoir aussi les autres illustrations SVG et vérifier la provenance commerciale de `public/images/hero.png`.
+1. Confirmer ou remplacer les produits, caractéristiques, stocks, prix et images dans `shared/products.js`. Les seize photos du catalogue sont des visuels Pexels de référence : les remplacer par celles des vrais produits vendus (mêmes noms `<id>.jpg` / `<id>-extra.jpg`, format 5:6, fond neutre) et mettre à jour le tableau de licences de `public/images/README.md`. Les stocks de démonstration de 18 et 12 doivent être remplacés ou validés dans PostgreSQL avant la vente. Vérifier aussi la provenance commerciale de `public/images/hero.png`.
 2. Déposer le logo officiel dans `public/images/logo.svg` ou ajuster `BRAND_LOGO_PATH` dans `src/brand.js` pour un PNG haute résolution. Contrôler le rendu dans l’en-tête, le pied de page, l’écran de confirmation de commande et le favicon ; aucun fichier logo n’était fourni lors de cette mise à jour.
 3. Remplacer les avis de démonstration par des avis authentiques ; aucune mention « achat vérifié » n'est utilisée.
 4. Renseigner identité légale, contacts, CGV, délais/retours, responsable de traitement et durée de conservation dans les contenus d'information de `src/main.jsx`.
