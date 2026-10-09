@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1060" role="img" aria-labelledby="title description">
+  <title id="title">Baskets Essential — Vue détaillée</title>
+  <desc id="description">Illustration vectorielle originale du produit Baskets Essential, réalisée pour la maquette Global Shop Daloa.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8f7f2"/><stop offset="1" stop-color="#e5e2da"/></linearGradient>
+    <linearGradient id="material" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8f7f2"/><stop offset=".48" stop-color="#bd9a70"/><stop offset="1" stop-color="#4b4e46"/></linearGradient>
+    <radialGradient id="softLight"><stop stop-color="#fff" stop-opacity=".62"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="softShadow" x="-.3" y="-.3" width="1.6" height="1.8"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="900" height="1060" fill="url(#canvas)"/>
+  <ellipse cx="450" cy="505" rx="360" ry="390" fill="url(#softLight)"/>
+  <path d="M0 832q212-99 450-49 240 48 450-17v294H0z" fill="#ffffff" opacity=".17"/>
+  <path d="M87 114h726M87 144h125" stroke="#6b685b" stroke-opacity=".18" stroke-width="2"/>
+  <text x="87" y="98" fill="#525e50" fill-opacity=".76" font-family="Arial,sans-serif" font-size="15" letter-spacing="4">GLOBAL SHOP · SÉLECTION</text>
+  <ellipse cx="450" cy="852" rx="246" ry="45" fill="#3c3329" opacity=".17" filter="url(#softShadow)"/>
+  <rect x="181" y="835" width="538" height="86" rx="15" fill="#fffdf7" opacity=".36"/>
+  <path d="M181 854q269 30 538 0" stroke="#fff" stroke-opacity=".6" stroke-width="3" fill="none"/>
+<g transform="translate(191 464) rotate(5 255 170) scale(1.03)">
+        <path d="M36 174q36-19 64-71l68-94q19-24 47-10l91 50q54 29 81 76l81 44q33 18 23 61l-10 37q-7 24-38 24H83q-54 0-60-40l-5-33q-5-29 18-44z" fill="url(#material)" stroke="#a49c8b" stroke-width="5"/>
+        <path d="M33 211q193 38 449-4l14 27q-7 30-38 30H83q-54 0-60-40z" fill="#b9956a" stroke="#8b7557" stroke-width="5"/>
+        <path d="M170 29q83 3 142 63l-46 74-167-16z" fill="#faf8f1"/>
+        <path d="M111 123l168 23m-185-2 174 23m-137-78 31 64m19-54 30 59m17-45 29 45" stroke="#ad987b" stroke-width="7" stroke-linecap="round"/>
+        <path d="M70 182q111 18 181 9" stroke="#d0b98f" stroke-width="7" stroke-linecap="round"/>
+      </g>
+      <path d="M673 580q60-39 92-3" fill="none" stroke="#9d8767" stroke-width="3" opacity=".6"/>
+  <path d="M87 961h726" stroke="#5a5c50" stroke-opacity=".22" stroke-width="2"/>
+  <text x="87" y="997" fill="#596052" fill-opacity=".78" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">DALOA · BIEN CHOISI, TOUT PRÈS DE VOUS</text>
+  <text x="812" y="997" text-anchor="end" fill="#596052" fill-opacity=".62" font-family="Arial,sans-serif" font-size="12" letter-spacing="2">BASKETS</text>
+</svg>

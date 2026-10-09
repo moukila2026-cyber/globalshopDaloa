@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1060" role="img" aria-labelledby="title description">
+  <title id="title">Montre connectée Active — Vue détaillée</title>
+  <desc id="description">Illustration vectorielle originale du produit Montre connectée Active, réalisée pour la maquette Global Shop Daloa.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f4f3ef"/><stop offset="1" stop-color="#e6e6e1"/></linearGradient>
+    <linearGradient id="material" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f4f3ef"/><stop offset=".48" stop-color="#89928c"/><stop offset="1" stop-color="#353b37"/></linearGradient>
+    <radialGradient id="softLight"><stop stop-color="#fff" stop-opacity=".62"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="softShadow" x="-.3" y="-.3" width="1.6" height="1.8"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+  <rect width="900" height="1060" fill="url(#canvas)"/>
+  <ellipse cx="450" cy="505" rx="360" ry="390" fill="url(#softLight)"/>
+  <path d="M0 832q212-99 450-49 240 48 450-17v294H0z" fill="#ffffff" opacity=".17"/>
+  <path d="M87 114h726M87 144h125" stroke="#6b685b" stroke-opacity=".18" stroke-width="2"/>
+  <text x="87" y="98" fill="#525e50" fill-opacity=".76" font-family="Arial,sans-serif" font-size="15" letter-spacing="4">GLOBAL SHOP · SÉLECTION</text>
+  <ellipse cx="450" cy="852" rx="246" ry="45" fill="#3c3329" opacity=".17" filter="url(#softShadow)"/>
+  <rect x="181" y="835" width="538" height="86" rx="15" fill="#fffdf7" opacity=".36"/>
+  <path d="M181 854q269 30 538 0" stroke="#fff" stroke-opacity=".6" stroke-width="3" fill="none"/>
+<g transform="translate(450 560) rotate(-15) translate(-450 -560)">
+        <path d="M392 202q58-30 116 0l31 192H361z" fill="url(#material)" stroke="#777f79" stroke-width="5"/>
+        <path d="M361 658h178l-31 192q-58 30-116 0z" fill="url(#material)" stroke="#777f79" stroke-width="5"/>
+        <rect x="291" y="383" width="318" height="318" rx="84" fill="#434a45" stroke="#b2b7af" stroke-width="9"/>
+        <rect x="318" y="410" width="264" height="264" rx="61" fill="#172520"/>
+        <circle cx="450" cy="542" r="85" fill="none" stroke="#d5a06f" stroke-width="10"/>
+        <path d="M450 470v73l49 29" fill="none" stroke="#f2e8d7" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="450" cy="543" r="9" fill="#b77551"/>
+        <path d="M357 624q93 27 186 0" fill="none" stroke="#7f9a86" stroke-width="5" stroke-linecap="round"/>
+      </g>
+      <path d="M670 293q48 25 74 73m-68 370q44-17 68-63" fill="none" stroke="#aeb5ac" stroke-width="4" opacity=".65"/>
+  <path d="M87 961h726" stroke="#5a5c50" stroke-opacity=".22" stroke-width="2"/>
+  <text x="87" y="997" fill="#596052" fill-opacity=".78" font-family="Arial,sans-serif" font-size="13" letter-spacing="3">DALOA · BIEN CHOISI, TOUT PRÈS DE VOUS</text>
+  <text x="812" y="997" text-anchor="end" fill="#596052" fill-opacity=".62" font-family="Arial,sans-serif" font-size="12" letter-spacing="2">MONTRE</text>
+</svg>

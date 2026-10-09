@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="14" fill="#285344"/><text x="24" y="34" text-anchor="middle" font-size="32" fill="#fff" font-family="Georgia">g</text></svg>
+<!-- Temporary favicon fallback. The configured official logo replaces it automatically when public/images/logo.svg is supplied. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="18" fill="#2b4e40"/>
+  <text x="27" y="46" text-anchor="middle" font-size="43" fill="#fffefa" font-family="Georgia,serif">g</text>
+  <circle cx="47" cy="20" r="5" fill="#b77551"/>
+</svg>
