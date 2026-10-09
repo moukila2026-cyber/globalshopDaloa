@@ -13,11 +13,9 @@ async function assertLocalImage(imagePath) {
   );
 
   if (imagePath.endsWith(".svg")) {
-    const svg = image.toString("utf8");
-    assert.match(svg, /<svg\s[^>]*viewBox=/);
-    assert.match(svg, /<title/);
-    assert.doesNotMatch(svg, /<script\b/i);
-    assert.doesNotMatch(svg, /(?:href|src)=["']https?:\/\//i);
+    assert.fail(
+      `${imagePath} : le catalogue n’utilise plus d’illustration SVG, uniquement des photos`,
+    );
   } else if (imagePath.endsWith(".jpg") || imagePath.endsWith(".jpeg")) {
     assert.ok(image.length > 1000, `${imagePath} should be a real photo`);
     assert.deepEqual([...image.subarray(0, 3)], [0xff, 0xd8, 0xff]);
@@ -36,12 +34,16 @@ test("catalogue product images are valid local assets with a safe local fallback
   for (const product of products) {
     assert.ok(product.image, `${product.id} should have a main image`);
     assert.ok(product.extra, `${product.id} should have an extra image`);
+    assert.ok(
+      product.image.endsWith(".jpg") && product.extra.endsWith(".jpg"),
+      `${product.id} should use local JPEG photos`,
+    );
     await assertLocalImage(product.image);
     await assertLocalImage(product.extra);
   }
 
   const byId = new Map(products.map((product) => [product.id, product]));
-  assert.equal(byId.get("casque").image, "/images/products/casque.png");
+  assert.equal(byId.get("casque").image, "/images/products/casque.jpg");
   assert.equal(byId.get("casque").extra, "/images/products/casque-extra.jpg");
   assert.equal(byId.get("sac").image, "/images/products/sac.jpg");
   assert.equal(byId.get("sac").extra, "/images/products/sac-extra.jpg");
@@ -62,7 +64,7 @@ test("catalogue product images are valid local assets with a safe local fallback
   assert.match(applicationSource, /className=\{`product-stock/);
   assert.match(applicationSource, /selected\.stock === 1/);
   assert.match(applicationSource, /image: "\/images\/products\/sac\.jpg"/);
-  assert.match(applicationSource, /image: "\/images\/products\/casque\.png"/);
+  assert.match(applicationSource, /image: "\/images\/products\/casque\.jpg"/);
 });
 
 test("photo-reference prices use local market comparators and seed quantities remain visible", () => {

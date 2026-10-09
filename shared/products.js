@@ -1,5 +1,7 @@
+// Les photos sont servies depuis `public/images/products/` (JPEG 5:6, fond blanc studio).
+// Elles sont (re)générées avec `npm run photos:build` depuis les sources déposées dans `sources/`.
 const productImage = (id, view = "main") =>
-  `/images/products/${id}${view === "extra" ? "-extra" : ""}.svg`;
+  `/images/products/${id}${view === "extra" ? "-extra" : ""}.jpg`;
 // Stocks are demonstration seed values; the live quantity comes from PostgreSQL.
 // Prices on the casque/sac photo references are indicative local-market comparisons.
 export const products = [
@@ -9,7 +11,7 @@ export const products = [
     category: "High-tech",
     price: 12900,
     oldPrice: null,
-    image: "/images/products/casque.png",
+    image: "/images/products/casque.jpg",
     extra: "/images/products/casque-extra.jpg",
     rating: 4.8,
     reviews: 24,

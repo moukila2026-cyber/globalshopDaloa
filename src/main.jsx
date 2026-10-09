@@ -683,19 +683,19 @@ function App() {
               {
                 cat: "High-tech",
                 caption: "Connecté à ce qui compte.",
-                image: "/images/products/casque.png",
+                image: "/images/products/casque.jpg",
                 className: "tech",
               },
               {
                 cat: "Maison",
                 caption: "Un peu plus chez vous.",
-                image: "/images/products/lampe.svg",
+                image: "/images/products/lampe.jpg",
                 className: "home",
               },
               {
                 cat: "Beauté",
                 caption: "Du temps pour vous.",
-                image: "/images/products/serum.svg",
+                image: "/images/products/serum.jpg",
                 className: "beauty",
               },
             ].map((c) => (
