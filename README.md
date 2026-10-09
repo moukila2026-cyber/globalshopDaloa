@@ -23,7 +23,7 @@ npm start         # production locale, sert dist/ (DATABASE_URL requis)
 ## Fonctionnalités
 
 - Quatre collections, recherche, filtres catégories/promotions/favoris et tri.
-- Fiches produits, galeries plein écran (clavier/tactile), caractéristiques et avis illustratifs.
+- Fiches produits et visionneuse plein écran (lightbox) sur chaque image du catalogue et des fiches : précédent/suivant (clavier, boutons, swipe tactile), fermeture par Échap, focus piégé et restauré, légende, animations réduites selon la préférence système.
 - Panier et favoris locaux persistants, frais de livraison calculés.
 - Livraison Daloa/Bouaké, formulaire et confirmation de commande sans compte.
 - Paiement en espèces à la livraison, enregistrement PostgreSQL et référence de commande.
@@ -37,7 +37,7 @@ npm start         # production locale, sert dist/ (DATABASE_URL requis)
 - Prix repères consultés le 9 octobre 2026 : casque à `12 900 FCFA`, comparable aux offres [Djokstore](https://djokstore.ci/collections/casques) et [Jumia](https://www.jumia.ci/mlp-casque-bluetooth/) ; sac à `9 200 FCFA`, dans la fourchette des [sacs bandoulière listés sur Jumia Côte d’Ivoire](https://www.jumia.ci/sacs-main-portefeuilles-sacs-bandouliere/). Les offres sont variables et les modèles ne sont pas identifiés par les photos : ces prix ne sont pas des devis fournisseur.
 - Les quantités de départ (18 casques, 12 sacs) sont des stocks de démonstration. Le catalogue lit le stock courant en base PostgreSQL; l’initialisation insère les valeurs de `shared/products.js` uniquement pour les références absentes et n’écrase jamais un stock déjà enregistré. Confirmer ces quantités dans Neon avant la vente.
 - Le hero et la section histoire utilisent l’image locale préexistante `public/images/hero.png`. Vérifier sa provenance et son autorisation commerciale avant ouverture.
-- Le logo officiel n’a pas encore été fourni. Déposer le SVG dans `public/images/logo.svg` (emplacement par défaut), configuré dans `src/brand.js`. Pour un PNG haute résolution, déposer le fichier dans `public/images/` et changer `BRAND_LOGO_PATH` dans ce même fichier. Le composant partagé l’affiche dans l’en-tête et le pied de page avec le texte alternatif « Logo Global Shop Daloa » ; le favicon pointe automatiquement vers le logo chargé. `public/favicon.svg` reste le favicon de repli tant que le logo manque.
+- Le logo officiel n’a pas encore été fourni. Déposer le SVG dans `public/images/logo.svg` (emplacement par défaut), configuré dans `src/brand.js`. Pour un PNG haute résolution, déposer le fichier dans `public/images/` et changer `BRAND_LOGO_PATH` dans ce même fichier. Le composant partagé l’affiche dans l’en-tête, le pied de page et l’écran de confirmation de commande, avec le texte alternatif « Logo Global Shop Daloa » ; le favicon pointe automatiquement vers le logo chargé. `public/favicon.svg` reste le favicon de repli (monogramme) tant que le logo manque.
 - Les photos restent servies depuis l’origine du site ; `img-src 'self'` dans `server/app.js` n’est pas assoupli.
 
 ## Architecture
@@ -106,7 +106,7 @@ Points spécifiques à PostgreSQL et Vercel :
 Cette version est une démonstration fonctionnelle, pas une boutique déjà opérationnelle :
 
 1. Confirmer ou remplacer les produits, caractéristiques, stocks, prix et images dans `shared/products.js`. Les photos du casque et du sac sont des visuels Pexels de référence ; les références réelles sont à confirmer. Les stocks de démonstration de 18 et 12 doivent être remplacés ou validés dans PostgreSQL avant la vente. Revoir aussi les autres illustrations SVG et vérifier la provenance commerciale de `public/images/hero.png`.
-2. Déposer le logo officiel dans `public/images/logo.svg` ou ajuster `BRAND_LOGO_PATH` dans `src/brand.js` pour un PNG haute résolution. Contrôler le rendu dans l’en-tête, le pied de page et le favicon ; aucun fichier logo n’était fourni lors de cette mise à jour.
+2. Déposer le logo officiel dans `public/images/logo.svg` ou ajuster `BRAND_LOGO_PATH` dans `src/brand.js` pour un PNG haute résolution. Contrôler le rendu dans l’en-tête, le pied de page, l’écran de confirmation de commande et le favicon ; aucun fichier logo n’était fourni lors de cette mise à jour.
 3. Remplacer les avis de démonstration par des avis authentiques ; aucune mention « achat vérifié » n'est utilisée.
 4. Renseigner identité légale, contacts, CGV, délais/retours, responsable de traitement et durée de conservation dans les contenus d'information de `src/main.jsx`.
 5. Organiser le traitement des commandes : les commandes sont enregistrées mais aucun SMS/e-mail n'est envoyé et aucune interface d'administration n'est fournie. L'opérateur doit accéder aux commandes de manière sécurisée (SQL Neon avec accès restreint). Ajouter une administration authentifiée avec rôles avant de déléguer cette gestion.
