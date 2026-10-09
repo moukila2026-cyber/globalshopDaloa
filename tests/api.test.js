@@ -14,7 +14,7 @@ test('API persists idempotent orders, protects origins and rolls stock back',asy
   assert.equal((await post(body,'https://evil.example')).status,403);
   assert.equal((await post({...body,total:1})).status,400);
   const before=await (await fetch(`${url}/products`)).json();
-  const first=await post(body);assert.equal(first.status,201);const order=await first.json();assert.equal(order.total,26400);
+  const first=await post(body);assert.equal(first.status,201);const order=await first.json();assert.equal(order.total,14400);
   const duplicate=await (await post(body)).json();assert.equal(duplicate.reference,order.reference);assert.equal(duplicate.duplicate,true);
   const after=await (await fetch(`${url}/products`)).json();assert.equal(after.find(p=>p.id==='casque').stock,before.find(p=>p.id==='casque').stock-1);
   const fail=await post({...body,requestId:randomUUID(),items:[{id:'casque',quantity:1},{id:'lampe',quantity:10}]});assert.equal(fail.status,409);

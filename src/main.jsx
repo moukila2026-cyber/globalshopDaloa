@@ -677,13 +677,13 @@ function App() {
               {
                 cat: "Mode",
                 caption: "Votre style, tout simplement.",
-                image: "/images/products/sac.svg",
+                image: "/images/products/sac.jpg",
                 className: "fashion",
               },
               {
                 cat: "High-tech",
                 caption: "Connecté à ce qui compte.",
-                image: "/images/products/casque.svg",
+                image: "/images/products/casque.png",
                 className: "tech",
               },
               {
@@ -731,7 +731,7 @@ function App() {
               </h2>
             </div>
             <span className="selection-note">
-              <span className="tiny-dot" /> La sélection du moment
+              <span className="tiny-dot" /> Prix repères · stocks provisoires
             </span>
           </div>
           <div className="catalogue-toolbar">
@@ -884,8 +884,12 @@ function App() {
                   <div className="product-price">
                     <b>{money(p.price)}</b>
                     {p.oldPrice && <del>{money(p.oldPrice)}</del>}
-                    {!p.stock && <small>Épuisé</small>}
                   </div>
+                  <small className={`product-stock ${p.stock ? "" : "out-of-stock"}`}>
+                    {p.stock
+                      ? `${p.stock} disponible${p.stock === 1 ? "" : "s"}`
+                      : "Épuisé"}
+                  </small>
                 </article>
               ))}
             </div>
@@ -1413,7 +1417,7 @@ function App() {
                         ))}
                       </div>
                       <small>
-                        Visuels d’illustration · Le produit livré peut varier.
+                        Photos de référence non contractuelles · modèle exact à confirmer.
                       </small>
                     </div>
                     <div className="detail-info">
@@ -1438,7 +1442,9 @@ function App() {
                         </span>
                         <span className="stock-status">
                           <span className="tiny-dot" />
-                          {selected.stock ? "En stock" : "Épuisé"}
+                          {selected.stock
+                            ? `${selected.stock} disponible${selected.stock === 1 ? "" : "s"}`
+                            : "Épuisé"}
                         </span>
                       </div>
                       <ul className="specs">
@@ -1769,7 +1775,7 @@ const information = {
     title: "De belles trouvailles, bien choisies.",
     paragraphs: [
       "Mode, high-tech, maison et beauté : une sélection pensée pour votre quotidien à Daloa et à Bouaké.",
-      "Cette première version présente un catalogue de démonstration. Les références, les prix, les stocks et les avis doivent être confirmés par Global Shop avant l’ouverture commerciale.",
+      "Les prix affichés restent indicatifs. Le casque (12 900 FCFA) et le sac (9 200 FCFA) sont alignés sur des offres comparables observées en Côte d’Ivoire ; leurs références exactes, le prix final, les stocks et les avis doivent être confirmés par Global Shop avant toute commande.",
     ],
   },
   about: {

@@ -812,6 +812,28 @@ nav .tiny-dot {
   font-size: 9px;
   color: #9a614a;
 }
+.product-stock {
+  display: block;
+  margin-top: 5px;
+  color: #74836b;
+  font-size: 9px;
+  line-height: 1.35;
+}
+.product-stock::before {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin: 0 6px 1px 0;
+  border-radius: 50%;
+  background: #758e60;
+  content: "";
+}
+.product-stock.out-of-stock {
+  color: #9a614a;
+}
+.product-stock.out-of-stock::before {
+  background: #b77a5a;
+}
 .catalogue-bottom {
   display: flex;
   align-items: center;

@@ -1,25 +1,27 @@
 const productImage = (id, view = "main") =>
   `/images/products/${id}${view === "extra" ? "-extra" : ""}.svg`;
+// Stocks are demonstration seed values; the live quantity comes from PostgreSQL.
+// Prices on the casque/sac photo references are indicative local-market comparisons.
 export const products = [
   {
     id: "casque",
     name: "Casque sans fil Studio",
     category: "High-tech",
-    price: 24900,
-    oldPrice: 32000,
-    image: productImage("casque"),
-    extra: productImage("casque", "extra"),
+    price: 12900,
+    oldPrice: null,
+    image: "/images/products/casque.png",
+    extra: "/images/products/casque-extra.jpg",
     rating: 4.8,
     reviews: 24,
     badge: "BEST-SELLER",
-    color: "Sable",
+    color: "Blanc",
     stock: 18,
     description:
-      "Votre bulle de douceur, partout. Un casque au design épuré, avec des coussinets confortables et un son équilibré pour accompagner vos journées.",
+      "Un casque blanc à arceau pour vos moments d’écoute. Les images sont des références visuelles ; le modèle exact, l’autonomie et les accessoires sont à confirmer auprès de Global Shop avant la commande.",
     specs: [
-      "Connexion Bluetooth 5.3",
-      "Autonomie jusqu’à 30 heures",
-      "Microphone intégré · Recharge USB-C",
+      "Format supra-auriculaire · coloris de référence : blanc",
+      "Version Bluetooth et autonomie à confirmer",
+      "Accessoires et garantie à confirmer avant l’achat",
     ],
     review:
       "Très agréable à porter, et le son est vraiment bon. Mon nouveau compagnon au quotidien.",
@@ -28,21 +30,21 @@ export const products = [
     id: "sac",
     name: "Sac porté épaule Élise",
     category: "Mode",
-    price: 18500,
+    price: 9200,
     oldPrice: null,
-    image: productImage("sac"),
-    extra: productImage("sac", "extra"),
+    image: "/images/products/sac.jpg",
+    extra: "/images/products/sac-extra.jpg",
     rating: 4.9,
     reviews: 18,
     badge: "COUP DE CŒUR",
-    color: "Cognac",
+    color: "Tons neutres",
     stock: 12,
     description:
-      "Une silhouette intemporelle et juste ce qu’il faut d’espace. Le sac Élise accueille vos essentiels avec élégance, du bureau aux sorties du week-end.",
+      "Un sac porté épaule dans des tons neutres, présenté à partir de photos de référence. Le modèle, la matière, les dimensions et la couleur exacte de l’article disponible sont à confirmer auprès de Global Shop avant la commande.",
     specs: [
-      "Similicuir texturé de qualité",
-      "Doublure et poche intérieure",
-      "Dimensions : 28 × 21 × 10 cm",
+      "Type illustré : sac à main porté épaule",
+      "Matière et dimensions exactes à confirmer",
+      "Coloris de l’article disponible à confirmer avant l’achat",
     ],
     review:
       "La couleur est magnifique et la taille parfaite pour mes affaires. Très satisfaite !",
