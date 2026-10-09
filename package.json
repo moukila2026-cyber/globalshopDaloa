@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "node server/index.js",
     "build": "vite build",
     "start": "NODE_ENV=production node server/index.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "db:import-sqlite": "node scripts/import-sqlite.js"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",
@@ -16,12 +20,14 @@
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",
     "lucide-react": "^0.468.0",
+    "pg": "^8.23.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zod": "^4.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.0",
+    "embedded-postgres": "^17.10.0-beta.17",
     "vite": "^7.1.0"
   }
 }
