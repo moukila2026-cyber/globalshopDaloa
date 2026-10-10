@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { products } from '../shared/products.js';
 import { orderSchema, priceOrder } from './orders.js';
-import { StockError } from './store.js';
+import { DatabaseUnavailableError, StockError } from './store.js';
 
 // Construit l'application Express de l'API. Utilisée par le serveur local/Node (server/index.js)
 // et par la fonction serverless Vercel (api/index.js). Les protections sont identiques dans les deux cas.
@@ -31,7 +31,11 @@ export function createApp({store, production = false, frontend} = {}) {
     next();
   });
   // Le schéma est vérifié/créé à la première requête de chaque instance (utile en serverless).
-  const withDatabase = (req, res, next) => store.ensureReady().then(() => next(), next);
+  // Une base absente ou injoignable donne une 503 explicite, au lieu d'une erreur 500 silencieuse.
+  const withDatabase = (req, res, next) => store.ensureReady().then(() => next(), error => {
+    console.error('Database unavailable:', error.message);
+    next(error instanceof DatabaseUnavailableError ? error : new DatabaseUnavailableError());
+  });
 
   app.get('/api/products', withDatabase, async (_req, res, next) => {
     try {
@@ -39,7 +43,11 @@ export function createApp({store, production = false, frontend} = {}) {
       res.json(products.map(p => ({...p, stock: inventory.get(p.id) ?? 0})));
     } catch (error) { next(error); }
   });
-  app.get('/api/health', (_req, res) => res.json({status: 'ok'}));
+  // Diagnostic : répond toujours 200 ; `database` indique si PostgreSQL répond (voir README, section diagnostic).
+  app.get('/api/health', async (_req, res) => {
+    const database = await store.ensureReady().then(() => store.ping()).then(() => 'ok', () => 'unavailable');
+    res.json({status: 'ok', database});
+  });
   app.post('/api/orders', rateLimit({windowMs: 15 * 60000, limit: 15, standardHeaders: 'draft-8', legacyHeaders: false, message: {error: 'Trop de tentatives. Réessayez dans quelques minutes.'}}), withDatabase, async (req, res, next) => {
     const result = orderSchema.safeParse(req.body);
     if (!result.success) return res.status(400).json({error: 'Vérifiez vos coordonnées et les produits de votre panier.'});
@@ -62,6 +70,7 @@ export function createApp({store, production = false, frontend} = {}) {
 
   app.use((error, _req, res, _next) => {
     if (error.type === 'entity.parse.failed' || error.type === 'entity.too.large') return res.status(400).json({error: 'Requête invalide.'});
+    if (error instanceof DatabaseUnavailableError) return res.status(503).json({error: error.message});
     console.error('Server error:', error.message);
     res.status(500).json({error: 'Un problème est survenu. Veuillez réessayer.'});
   });

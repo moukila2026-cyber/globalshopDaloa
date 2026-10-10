@@ -38,7 +38,7 @@ npm start         # production locale, sert dist/ (DATABASE_URL requis)
 - Prix repères consultés le 9 octobre 2026 : casque à `12 900 FCFA`, comparable aux offres [Djokstore](https://djokstore.ci/collections/casques) et [Jumia](https://www.jumia.ci/mlp-casque-bluetooth/) ; sac à `9 200 FCFA`, dans la fourchette des [sacs bandoulière listés sur Jumia Côte d’Ivoire](https://www.jumia.ci/sacs-main-portefeuilles-sacs-bandouliere/). Les offres sont variables et les modèles ne sont pas identifiés par les photos : ces prix ne sont pas des devis fournisseur.
 - Les quantités de départ (18 casques, 12 sacs) sont des stocks de démonstration. Le catalogue lit le stock courant en base PostgreSQL; l’initialisation insère les valeurs de `shared/products.js` uniquement pour les références absentes et n’écrase jamais un stock déjà enregistré. Confirmer ces quantités dans Neon avant la vente.
 - Le hero et la section histoire utilisent l’image locale préexistante `public/images/hero.png`. Vérifier sa provenance et son autorisation commerciale avant ouverture.
-- Le logo officiel n’a pas encore été fourni. Déposer le SVG dans `public/images/logo.svg` (emplacement par défaut), configuré dans `src/brand.js`. Pour un PNG haute résolution, déposer le fichier dans `public/images/` et changer `BRAND_LOGO_PATH` dans ce même fichier. Le composant partagé l’affiche dans l’en-tête, le pied de page et l’écran de confirmation de commande, avec le texte alternatif « Logo Global Shop Daloa » ; le favicon pointe automatiquement vers le logo chargé. `public/favicon.svg` reste le favicon de repli (monogramme) tant que le logo manque.
+- Logo : `public/images/logo.svg` est présent. C’est un monogramme « GS » proposé aux couleurs de la marque (vert `#2b4e40`, crème, orange `#b77551`), dessiné à partir des tracés de la police Cormorant Garamond ; ce n’est pas encore le logo officiel du client. Pour le remplacer, déposer le fichier officiel au même nom (ou un `logo.png` et changer `BRAND_LOGO_PATH` dans `src/brand.js`). Le logo s’affiche en haut à gauche de l’en-tête (collant, taille réduite sur mobile), dans le pied de page, dans la confirmation de commande et dans le favicon ; le texte alternatif est « Logo Global Shop Daloa ». Détails et provenance dans `public/images/README.md`.
 - Les photos restent servies depuis l’origine du site ; `img-src 'self'` dans `server/app.js` n’est pas assoupli.
 
 ## Architecture
@@ -64,11 +64,24 @@ Le frontend est compilé dans `dist/` et servi en statique. Sur Vercel, les rout
    - `PUBLIC_ORIGIN` : origine HTTPS exacte, par exemple `https://globalshop.example`, sans slash final. Obligatoire pour que les POST soient acceptés depuis le domaine public.
    - `PG_POOL_MAX` : optionnel, `5` par défaut.
    - `NODE_ENV=production` est défini automatiquement par Vercel, ainsi que `VERCEL=1` (proxy de confiance activé automatiquement).
-4. **Déployer**, puis vérifier : `https://<domaine>/api/health` doit renvoyer `{"status":"ok"}`, et `https://<domaine>/api/products` doit renvoyer la liste avec les stocks (la première requête crée le schéma).
+4. **Déployer**, puis vérifier : `https://<domaine>/api/health` doit renvoyer `{"status":"ok","database":"ok"}`, et `https://<domaine>/api/products` doit renvoyer la liste avec les stocks (la première requête crée le schéma). Voir le tableau de diagnostic ci-dessous.
 5. **Domaine** : ajouter le domaine personnalisé dans Vercel, mettre `PUBLIC_ORIGIN` sur cette URL exacte, puis redéployer.
 6. **Test de commande** : passer une commande de test, vérifier la ligne dans la table `orders` (Neon SQL Editor), puis supprimer les données de test.
 
 Variante en ligne de commande : `vercel env add DATABASE_URL production`, puis `vercel --prod`.
+
+### Diagnostic : catalogue vide ou « Stocks indisponibles »
+
+`/api/health` répond toujours en 200 et indique l'état de la base dans `database`. C'est le premier point à contrôler.
+
+| Constat | Cause probable | Action |
+| --- | --- | --- |
+| `/api/health` → `{"status":"ok","database":"unavailable"}` et `/api/products` → 503 « Base de données non configurée… » | `DATABASE_URL` absente dans Vercel | Ajouter `DATABASE_URL` (Neon pooled, `sslmode=require`) dans Settings → Environment Variables, puis redéployer |
+| `/api/products` → 503 « Base de données indisponible… » alors que `DATABASE_URL` est définie | Base Neon en veille, mauvais mot de passe ou hôte incorrect | Vérifier la chaîne dans Neon, relancer la base, redéployer |
+| Bandeau « Stocks indisponibles » et libellés « Stock à confirmer » sur le site | `/api/products` ne répond pas : le site affiche le catalogue de référence (`shared/products.js`) | Corriger l'API selon les lignes ci-dessus ; « Réessayer » recharge les stocks |
+| Commande refusée avec une erreur 409 | Stock insuffisant ou produit épuisé | Comportement normal : vérifier la table `stock` |
+
+La chaîne `DATABASE_URL` n'est jamais renvoyée par l'API ni affichée sur le site ; ne pas la copier dans les tickets ou les captures d'écran.
 
 ### Migration des commandes SQLite existantes
 
@@ -108,7 +121,7 @@ Points spécifiques à PostgreSQL et Vercel :
 Cette version est une démonstration fonctionnelle, pas une boutique déjà opérationnelle :
 
 1. Confirmer ou remplacer les produits, caractéristiques, stocks, prix et images dans `shared/products.js`. Les seize photos du catalogue sont des visuels Pexels de référence : les remplacer par celles des vrais produits vendus (mêmes noms `<id>.jpg` / `<id>-extra.jpg`, format 5:6, fond neutre) et mettre à jour le tableau de licences de `public/images/README.md`. Les stocks de démonstration de 18 et 12 doivent être remplacés ou validés dans PostgreSQL avant la vente. Vérifier aussi la provenance commerciale de `public/images/hero.png`.
-2. Déposer le logo officiel dans `public/images/logo.svg` ou ajuster `BRAND_LOGO_PATH` dans `src/brand.js` pour un PNG haute résolution. Contrôler le rendu dans l’en-tête, le pied de page, l’écran de confirmation de commande et le favicon ; aucun fichier logo n’était fourni lors de cette mise à jour.
+2. Remplacer le monogramme proposé (`public/images/logo.svg`) par le logo officiel, ou ajuster `BRAND_LOGO_PATH` dans `src/brand.js` pour un PNG haute résolution. Contrôler le rendu dans l’en-tête, le pied de page, l’écran de confirmation de commande et le favicon.
 3. Remplacer les avis de démonstration par des avis authentiques ; aucune mention « achat vérifié » n'est utilisée.
 4. Renseigner identité légale, contacts, CGV, délais/retours, responsable de traitement et durée de conservation dans les contenus d'information de `src/main.jsx`.
 5. Organiser le traitement des commandes : les commandes sont enregistrées mais aucun SMS/e-mail n'est envoyé et aucune interface d'administration n'est fournie. L'opérateur doit accéder aux commandes de manière sécurisée (SQL Neon avec accès restreint). Ajouter une administration authentifiée avec rôles avant de déléguer cette gestion.

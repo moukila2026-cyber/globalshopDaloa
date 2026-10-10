@@ -85,3 +85,35 @@ test("styles keep the palette tokens, visible focus, entrance motion and reduced
   assert.match(css, /animation: none !important/);
   assert.match(css, /transition: none !important/);
 });
+
+test("catalogue falls back to reference products with unknown stock instead of an empty grid", async () => {
+  const app = await read("../src/main.jsx");
+  const css = await read("../src/styles.css");
+
+  // Chargement : en cas d'échec de /api/products, les produits de référence sont affichés sans stock confirmé.
+  assert.match(app, /referenceProducts\.map\(\(p\) => \(\{ \.\.\.p, stock: null \}\)\)/);
+  assert.match(app, /setStockUnavailable\(true\)/);
+  assert.match(app, /Stocks indisponibles/);
+  assert.doesNotMatch(app, /Le catalogue se fait attendre/);
+
+  // Stock inconnu : libellé dédié, panier non bloqué (limite 10 par ligne).
+  assert.match(app, /Stock à confirmer/);
+  assert.match(app, /stock-unknown/);
+  assert.match(app, /disabled=\{p\.stock === 0\}/);
+  assert.doesNotMatch(app, /disabled=\{!p\.stock\}/);
+  assert.match(css, /\.product-stock\.stock-unknown/);
+  assert.match(css, /\.stock-notice/);
+});
+
+test("shipped logo is a clean, self-contained SVG mark with a title and a viewBox", async () => {
+  const logo = await read("../public/images/logo.svg");
+  assert.match(logo, /^<svg[\s\S]*xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  assert.match(logo, /viewBox="0 0 120 120"/);
+  assert.match(logo, /<title[^>]*>Logo Global Shop Daloa<\/title>/);
+  // Sans script, sans ressource externe ni texte dépendant d'une police installée.
+  const withoutNamespace = logo.replace(/xmlns="[^"]*"/g, "");
+  assert.doesNotMatch(withoutNamespace, /<script|<foreignObject|<text[\s>]|href=|url\(|https?:\/\//i);
+  // Palette de marque.
+  assert.match(logo, /#2b4e40/);
+  assert.match(logo, /#b77551/);
+});

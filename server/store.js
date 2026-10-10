@@ -22,6 +22,14 @@ const SCHEMA_LOCK_KEY = 727001;
 
 export class StockError extends Error {}
 
+// Base absente ou injoignable : l'API répond 503 avec ce message (jamais de 500 muet).
+export class DatabaseUnavailableError extends Error {
+  constructor(message = 'Base de données indisponible. Réessayez dans quelques instants.') {
+    super(message);
+    this.name = 'DatabaseUnavailableError';
+  }
+}
+
 const LOCAL_HOSTS = /^(localhost|127\.0\.0\.1|\[::1\])$/;
 
 export function createPool(connectionString = process.env.DATABASE_URL) {
@@ -77,6 +85,10 @@ export function createStore(pool) {
   const store = {
     pool,
     ensureReady,
+
+    async ping() {
+      await pool.query('SELECT 1');
+    },
 
     async listStock() {
       const {rows} = await pool.query('SELECT id, quantity FROM stock');
