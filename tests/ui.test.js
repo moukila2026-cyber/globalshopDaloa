@@ -104,3 +104,16 @@ test("catalogue falls back to reference products with unknown stock instead of a
   assert.match(css, /\.product-stock\.stock-unknown/);
   assert.match(css, /\.stock-notice/);
 });
+
+test("shipped logo is a clean, self-contained SVG mark with a title and a viewBox", async () => {
+  const logo = await read("../public/images/logo.svg");
+  assert.match(logo, /^<svg[\s\S]*xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  assert.match(logo, /viewBox="0 0 120 120"/);
+  assert.match(logo, /<title[^>]*>Logo Global Shop Daloa<\/title>/);
+  // Sans script, sans ressource externe ni texte dépendant d'une police installée.
+  const withoutNamespace = logo.replace(/xmlns="[^"]*"/g, "");
+  assert.doesNotMatch(withoutNamespace, /<script|<foreignObject|<text[\s>]|href=|url\(|https?:\/\//i);
+  // Palette de marque.
+  assert.match(logo, /#2b4e40/);
+  assert.match(logo, /#b77551/);
+});

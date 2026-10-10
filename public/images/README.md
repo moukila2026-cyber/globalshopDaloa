@@ -48,9 +48,14 @@ Les prix repères du casque (`12 900 FCFA`) et du sac (`9 200 FCFA`) sont compar
 
 Déposer les nouvelles photos aux mêmes noms (`<id>.jpg` / `<id>-extra.jpg`, format 5:6, fond neutre) — directement dans `products/`, ou dans `sources/` puis `npm run photos:build` pour garder le cadrage homogène — puis mettre à jour le tableau ci-dessus (fichier → source → licence).
 
-## Logo officiel à fournir
+## Logo
 
-Déposer le logo SVG officiel ici sous le nom **`logo.svg`**. Le chemin est configurable dans `src/brand.js` (`BRAND_LOGO_PATH`). Pour un PNG haute résolution, déposer le fichier dans ce dossier puis remplacer la constante par `/images/logo.png`. Le composant de marque met automatiquement à jour le favicon lorsque l’image existe ; sinon il conserve son monogramme de repli et `public/favicon.svg`.
+**Fichier présent : `logo.svg`** (monogramme « GS », 120 × 120, fond transparent, `viewBox`, `<title>` « Logo Global Shop Daloa », sans script ni ressource externe).
+
+- **Provenance** : logo proposé et dessiné pour cette version, pas le logo officiel du client. Les lettres sont des tracés (chemins vectoriels) extraits de Cormorant Garamond SemiBold 600, la police auto-hébergée du site (Fontsource, licence SIL Open Font License 1.1). Couleurs de la charte : fond `#2b4e40`, lettres crème `#fffefa`, filet crème discret et accent `#b77551`.
+- **Remplacement** : pour utiliser le logo officiel, remplacer `public/images/logo.svg` par le fichier fourni, en gardant ce nom. Pour un PNG haute résolution, déposer `logo.png` ici puis changer `BRAND_LOGO_PATH` dans `src/brand.js` en `/images/logo.png` (le test `tests/ui.test.js` accepte `.svg` ou `.png`).
+- **Où il apparaît** : en-tête (à gauche, collant), pied de page, écran de confirmation de commande, et favicon (le favicon bascule automatiquement sur le logo chargé). Si le fichier manque, le composant affiche le monogramme de repli « g• » et `public/favicon.svg` reste le favicon.
+- **Pas d’image Open Graph** : `index.html` ne déclare pas de `og:image`. Un aperçu de partage demanderait une image 1200 × 630 dédiée, à fournir par le propriétaire.
 
 ## Hero
 
