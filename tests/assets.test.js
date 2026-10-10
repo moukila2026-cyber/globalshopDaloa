@@ -62,7 +62,8 @@ test("catalogue product images are valid local assets with a safe local fallback
   assert.doesNotMatch(applicationSource, /images\.unsplash\.com|photo-\d+/i);
   assert.match(applicationSource, /\[p\.image, p\.extra\]/);
   assert.match(applicationSource, /className=\{`product-stock/);
-  assert.match(applicationSource, /selected\.stock === 1/);
+  assert.match(applicationSource, /p\.stock === 1 \? "" : "s"/);
+  assert.match(applicationSource, /stockLabel\(selected\)/);
   assert.match(applicationSource, /image: "\/images\/products\/sac\.jpg"/);
   assert.match(applicationSource, /image: "\/images\/products\/casque\.jpg"/);
 });

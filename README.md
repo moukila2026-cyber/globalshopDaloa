@@ -64,11 +64,24 @@ Le frontend est compilé dans `dist/` et servi en statique. Sur Vercel, les rout
    - `PUBLIC_ORIGIN` : origine HTTPS exacte, par exemple `https://globalshop.example`, sans slash final. Obligatoire pour que les POST soient acceptés depuis le domaine public.
    - `PG_POOL_MAX` : optionnel, `5` par défaut.
    - `NODE_ENV=production` est défini automatiquement par Vercel, ainsi que `VERCEL=1` (proxy de confiance activé automatiquement).
-4. **Déployer**, puis vérifier : `https://<domaine>/api/health` doit renvoyer `{"status":"ok"}`, et `https://<domaine>/api/products` doit renvoyer la liste avec les stocks (la première requête crée le schéma).
+4. **Déployer**, puis vérifier : `https://<domaine>/api/health` doit renvoyer `{"status":"ok","database":"ok"}`, et `https://<domaine>/api/products` doit renvoyer la liste avec les stocks (la première requête crée le schéma). Voir le tableau de diagnostic ci-dessous.
 5. **Domaine** : ajouter le domaine personnalisé dans Vercel, mettre `PUBLIC_ORIGIN` sur cette URL exacte, puis redéployer.
 6. **Test de commande** : passer une commande de test, vérifier la ligne dans la table `orders` (Neon SQL Editor), puis supprimer les données de test.
 
 Variante en ligne de commande : `vercel env add DATABASE_URL production`, puis `vercel --prod`.
+
+### Diagnostic : catalogue vide ou « Stocks indisponibles »
+
+`/api/health` répond toujours en 200 et indique l'état de la base dans `database`. C'est le premier point à contrôler.
+
+| Constat | Cause probable | Action |
+| --- | --- | --- |
+| `/api/health` → `{"status":"ok","database":"unavailable"}` et `/api/products` → 503 « Base de données non configurée… » | `DATABASE_URL` absente dans Vercel | Ajouter `DATABASE_URL` (Neon pooled, `sslmode=require`) dans Settings → Environment Variables, puis redéployer |
+| `/api/products` → 503 « Base de données indisponible… » alors que `DATABASE_URL` est définie | Base Neon en veille, mauvais mot de passe ou hôte incorrect | Vérifier la chaîne dans Neon, relancer la base, redéployer |
+| Bandeau « Stocks indisponibles » et libellés « Stock à confirmer » sur le site | `/api/products` ne répond pas : le site affiche le catalogue de référence (`shared/products.js`) | Corriger l'API selon les lignes ci-dessus ; « Réessayer » recharge les stocks |
+| Commande refusée avec une erreur 409 | Stock insuffisant ou produit épuisé | Comportement normal : vérifier la table `stock` |
+
+La chaîne `DATABASE_URL` n'est jamais renvoyée par l'API ni affichée sur le site ; ne pas la copier dans les tickets ou les captures d'écran.
 
 ### Migration des commandes SQLite existantes
 

@@ -85,3 +85,22 @@ test("styles keep the palette tokens, visible focus, entrance motion and reduced
   assert.match(css, /animation: none !important/);
   assert.match(css, /transition: none !important/);
 });
+
+test("catalogue falls back to reference products with unknown stock instead of an empty grid", async () => {
+  const app = await read("../src/main.jsx");
+  const css = await read("../src/styles.css");
+
+  // Chargement : en cas d'échec de /api/products, les produits de référence sont affichés sans stock confirmé.
+  assert.match(app, /referenceProducts\.map\(\(p\) => \(\{ \.\.\.p, stock: null \}\)\)/);
+  assert.match(app, /setStockUnavailable\(true\)/);
+  assert.match(app, /Stocks indisponibles/);
+  assert.doesNotMatch(app, /Le catalogue se fait attendre/);
+
+  // Stock inconnu : libellé dédié, panier non bloqué (limite 10 par ligne).
+  assert.match(app, /Stock à confirmer/);
+  assert.match(app, /stock-unknown/);
+  assert.match(app, /disabled=\{p\.stock === 0\}/);
+  assert.doesNotMatch(app, /disabled=\{!p\.stock\}/);
+  assert.match(css, /\.product-stock\.stock-unknown/);
+  assert.match(css, /\.stock-notice/);
+});

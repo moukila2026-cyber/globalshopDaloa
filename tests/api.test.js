@@ -25,6 +25,6 @@ test('API persists idempotent orders, protects origins and rolls stock back',asy
   assert.equal(new Set(concurrent.map(o=>o.reference)).size,1);
   const afterConcurrent=await (await fetch(`${url}/products`)).json();assert.equal(afterConcurrent.find(p=>p.id==='casque').stock,after.find(p=>p.id==='casque').stock-1);
   assert.equal((await fetch(`${url}/orders`)).status,404);
-  assert.equal((await fetch(`${url}/health`)).status,200);
+  const health=await fetch(`${url}/health`);assert.equal(health.status,200);assert.deepEqual(await health.json(),{status:'ok',database:'ok'});
  } finally {server.kill();await new Promise(resolve=>server.once('exit',resolve));await database.stop();}
 });

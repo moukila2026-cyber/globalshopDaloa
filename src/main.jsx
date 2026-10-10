@@ -27,10 +27,18 @@ import {
   Facebook,
   Sparkles,
 } from "lucide-react";
-import { shippingFee } from "../shared/products.js";
+import { products as referenceProducts, shippingFee } from "../shared/products.js";
 import { BRAND_LOGO_ALT, BRAND_LOGO_PATH } from "./brand.js";
 import "./styles.css";
 const money = (n) => new Intl.NumberFormat("fr-CI").format(n) + " FCFA";
+// Stock inconnu (catalogue de secours, stock === null) : le panier reste disponible, limité à 10 par ligne.
+const stockLimit = (p) => (typeof p.stock === "number" ? Math.min(10, p.stock) : 10);
+const stockLabel = (p) =>
+  p.stock === null
+    ? "Stock à confirmer"
+    : p.stock
+      ? `${p.stock} disponible${p.stock === 1 ? "" : "s"}`
+      : "Épuisé";
 const categories = ["Tout voir", "Mode", "High-tech", "Maison", "Beauté"];
 const imageFallback = "/images/products/produit-indisponible.svg";
 function Photo({ src, alt, ...props }) {
@@ -94,7 +102,7 @@ function readCart() {
 }
 function App() {
   const [products, setProducts] = useState([]),
-    [loadError, setLoadError] = useState(false),
+    [stockUnavailable, setStockUnavailable] = useState(false),
     [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("Tout voir"),
     [sort, setSort] = useState("featured"),
@@ -143,13 +151,15 @@ function App() {
   submittingRef.current = submitting;
   async function loadProducts() {
     setLoading(true);
-    setLoadError(false);
     try {
       const r = await fetch("/api/products");
       if (!r.ok) throw Error();
       setProducts(await r.json());
+      setStockUnavailable(false);
     } catch {
-      setLoadError(true);
+      // Catalogue de secours : la boutique reste consultable, les stocks sont à confirmer.
+      setProducts(referenceProducts.map((p) => ({ ...p, stock: null })));
+      setStockUnavailable(true);
     } finally {
       setLoading(false);
     }
@@ -326,7 +336,7 @@ function App() {
   }
   function add(p, n = 1) {
     const current = cart.find((i) => i.id === p.id)?.quantity || 0;
-    if (current + n > Math.min(10, p.stock)) {
+    if (current + n > stockLimit(p)) {
       setToast("La quantité disponible a été atteinte.");
       return;
     }
@@ -790,20 +800,27 @@ function App() {
               )}
             </div>
           )}
+          {stockUnavailable && (
+            <div className="stock-notice" role="status">
+              <Package size={20} />
+              <div>
+                <b>Stocks indisponibles</b>
+                <p>
+                  Nous affichons notre sélection de référence. Les quantités
+                  seront vérifiées au moment de la confirmation de votre
+                  commande.
+                </p>
+              </div>
+              <button className="text-button" onClick={loadProducts}>
+                Réessayer
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="product-grid">
               {[1, 2, 3, 4].map((n) => (
                 <div className="skeleton" key={n} />
               ))}
-            </div>
-          ) : loadError ? (
-            <div className="empty-state">
-              <Package size={34} />
-              <h3>Le catalogue se fait attendre.</h3>
-              <p>Vérifiez votre connexion, puis réessayez.</p>
-              <button className="button dark" onClick={loadProducts}>
-                Réessayer
-              </button>
             </div>
           ) : filtered.length === 0 ? (
             <div className="empty-state">
@@ -865,7 +882,7 @@ function App() {
                     <button
                       className="quick-add"
                       onClick={() => add(p)}
-                      disabled={!p.stock}
+                      disabled={p.stock === 0}
                       aria-label={`Ajouter ${p.name} au panier`}
                     >
                       <Plus size={18} />
@@ -885,10 +902,10 @@ function App() {
                     <b>{money(p.price)}</b>
                     {p.oldPrice && <del>{money(p.oldPrice)}</del>}
                   </div>
-                  <small className={`product-stock ${p.stock ? "" : "out-of-stock"}`}>
-                    {p.stock
-                      ? `${p.stock} disponible${p.stock === 1 ? "" : "s"}`
-                      : "Épuisé"}
+                  <small
+                    className={`product-stock ${p.stock === null ? "stock-unknown" : p.stock ? "" : "out-of-stock"}`}
+                  >
+                    {stockLabel(p)}
                   </small>
                 </article>
               ))}
@@ -1291,7 +1308,7 @@ function App() {
                                   <span>{p.quantity}</span>
                                   <button
                                     disabled={
-                                      p.quantity >= Math.min(10, p.stock)
+                                      p.quantity >= stockLimit(p)
                                     }
                                     onClick={() => update(p.id, 1)}
                                     aria-label={`Augmenter la quantité de ${p.name}`}
@@ -1448,9 +1465,7 @@ function App() {
                         </span>
                         <span className="stock-status">
                           <span className="tiny-dot" />
-                          {selected.stock
-                            ? `${selected.stock} disponible${selected.stock === 1 ? "" : "s"}`
-                            : "Épuisé"}
+                          {stockLabel(selected)}
                         </span>
                       </div>
                       <ul className="specs">
@@ -1472,7 +1487,7 @@ function App() {
                           </button>
                           <span>{quantity}</span>
                           <button
-                            disabled={quantity >= Math.min(10, selected.stock)}
+                            disabled={quantity >= stockLimit(selected)}
                             onClick={() => setQuantity((q) => q + 1)}
                             aria-label="Augmenter la quantité"
                           >
@@ -1481,7 +1496,7 @@ function App() {
                         </div>
                         <button
                           className="button dark"
-                          disabled={!selected.stock}
+                          disabled={selected.stock === 0}
                           onClick={() => add(selected, quantity)}
                         >
                           <ShoppingBag size={18} /> Ajouter au panier

@@ -834,6 +834,42 @@ nav .tiny-dot {
 .product-stock.out-of-stock::before {
   background: #b77a5a;
 }
+.product-stock.stock-unknown {
+  color: var(--muted);
+}
+.product-stock.stock-unknown::before {
+  background: var(--orange);
+}
+/* Bandeau « Stocks indisponibles » : catalogue de secours affiché sans stock confirmé. */
+.stock-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 14px;
+  margin: 0 0 24px;
+  padding: 14px 18px;
+  border: 1px solid #e3d3c6;
+  border-radius: var(--radius-card);
+  background: #fbf4ee;
+  color: #6f4a36;
+}
+.stock-notice > svg {
+  flex: none;
+  color: var(--orange);
+}
+.stock-notice div {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.stock-notice b {
+  font-size: 13px;
+  color: var(--ink);
+}
+.stock-notice p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
 .catalogue-bottom {
   display: flex;
   align-items: center;
