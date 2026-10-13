@@ -117,3 +117,18 @@ test("shipped logo is a clean, self-contained SVG mark with a title and a viewBo
   assert.match(logo, /#2b4e40/);
   assert.match(logo, /#b77551/);
 });
+
+test("buyer order tracking and admin real-time & agent code generator UI are wired", async () => {
+  const app = await read("../src/main.jsx");
+  const adminApp = await read("../src/admin/AdminApp.jsx");
+
+  // Suivi de commande acheteur (« Suivre ma commande ») dans la boutique.
+  assert.match(app, /Suivre ma commande/);
+  assert.match(app, /\/api\/orders\/track/);
+  assert.match(app, /tracking-result/);
+
+  // Espace admin : ajout de nouveaux produits, générateur de codes agents et suivi en temps réel.
+  assert.match(adminApp, /Ajouter un nouveau produit dans le stock/);
+  assert.match(adminApp, /Générateur de codes aléatoires pour les agents/);
+  assert.match(adminApp, /Zone de suivi en temps réel/);
+});

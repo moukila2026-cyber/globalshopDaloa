@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { randomUUID } from 'node:crypto';
 import { products } from '../shared/products.js';
+import { canonicalIvorianPhone, orderStatusLabels } from './orders.js';
 // Fuseau de référence de la boutique : la Côte d'Ivoire est à GMT (UTC+0) toute l'année.
 // Tous les rapports de vente et l'affichage des commandes sont calculés dans ce fuseau explicite,
 // afin de rester justes même si le serveur (ou Neon) tourne en UTC.
@@ -37,6 +38,51 @@ CREATE TABLE IF NOT EXISTS product_photos (
   bytes bytea NOT NULL,
   updated_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (product_id, view)
+);
+CREATE TABLE IF NOT EXISTS custom_products (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  category text NOT NULL,
+  price integer NOT NULL CHECK (price >= 0),
+  compare_at_price integer CHECK (compare_at_price IS NULL OR compare_at_price > price),
+  badge text NOT NULL DEFAULT 'NOUVEAU',
+  color text NOT NULL DEFAULT 'Standard',
+  description text NOT NULL DEFAULT '',
+  specs jsonb NOT NULL DEFAULT '[]'::jsonb,
+  review text NOT NULL DEFAULT 'Sélection Global Shop Daloa.',
+  rating numeric(2,1) NOT NULL DEFAULT 4.8,
+  reviews integer NOT NULL DEFAULT 1,
+  active boolean NOT NULL DEFAULT true,
+  created_by text NOT NULL DEFAULT 'Admin',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS admin_agents (
+  id uuid PRIMARY KEY,
+  name text NOT NULL,
+  role_label text NOT NULL DEFAULT 'Agent stock & catalogue',
+  code text NOT NULL UNIQUE,
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz
+);
+CREATE TABLE IF NOT EXISTS store_events (
+  id bigserial PRIMARY KEY,
+  type text NOT NULL,
+  category text NOT NULL DEFAULT 'boutique',
+  actor text NOT NULL DEFAULT 'Visiteur',
+  title text NOT NULL,
+  detail text NOT NULL DEFAULT '',
+  meta jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS visitor_heartbeats (
+  session_id text PRIMARY KEY,
+  page text NOT NULL DEFAULT '/',
+  city text,
+  cart_count integer NOT NULL DEFAULT 0,
+  last_action text NOT NULL DEFAULT 'Navigation boutique',
+  updated_at timestamptz NOT NULL DEFAULT now()
 );`;
 
 // Verrou consultatif de session : évite que plusieurs instances serverless créent le schéma en même temps.
@@ -117,6 +163,52 @@ const productSettingRow = row => ({
   updatedAt: row.updated_at
 });
 
+const customProductRow = row => ({
+  id: row.id,
+  name: row.name,
+  category: row.category,
+  price: row.price,
+  oldPrice: row.compare_at_price,
+  badge: row.badge,
+  color: row.color,
+  description: row.description,
+  specs: Array.isArray(row.specs) && row.specs.length ? row.specs : ['Disponible chez Global Shop Daloa', 'Paiement à la livraison à Daloa et Bouaké'],
+  review: row.review || 'Sélection Global Shop Daloa.',
+  rating: Number(row.rating) || 4.8,
+  reviews: Number(row.reviews) || 1,
+  active: row.active,
+  createdBy: row.created_by,
+  createdAt: row.created_at?.toISOString?.() ?? null,
+  updatedAt: row.updated_at?.toISOString?.() ?? null,
+  custom: true,
+  image: '/images/products/produit-indisponible.svg',
+  extra: '/images/products/produit-indisponible.svg'
+});
+
+const agentRow = row => ({
+  id: row.id,
+  name: row.name,
+  roleLabel: row.role_label,
+  code: row.code,
+  active: row.active,
+  createdAt: row.created_at?.toISOString?.() ?? null,
+  createdAtAbidjan: row.created_at_abidjan,
+  lastUsedAt: row.last_used_at?.toISOString?.() ?? null,
+  lastUsedAtAbidjan: row.last_used_at_abidjan ?? null
+});
+
+const eventRow = row => ({
+  id: Number(row.id),
+  type: row.type,
+  category: row.category,
+  actor: row.actor,
+  title: row.title,
+  detail: row.detail,
+  meta: row.meta ?? {},
+  createdAt: row.created_at?.toISOString?.() ?? null,
+  createdAtAbidjan: row.created_at_abidjan
+});
+
 export function createStore(pool) {
   let ready = null;
 
@@ -147,6 +239,38 @@ export function createStore(pool) {
       return rows[0] ?? null;
     },
 
+    // Suivi de commande côté acheteur : exige à la fois la référence exacte et le numéro de téléphone
+    // utilisé lors de la commande (comparés sous forme canonique à 10 chiffres).
+    async trackOrder({reference, phone}) {
+      const {rows} = await pool.query(`SELECT ${ORDER_COLUMNS} FROM orders WHERE UPPER(reference) = UPPER($1)`, [reference]);
+      const row = rows[0];
+      if (!row) return null;
+      const expectedPhone = canonicalIvorianPhone(row.payload?.customer?.phone ?? '');
+      const candidatePhone = canonicalIvorianPhone(phone ?? '');
+      if (!expectedPhone || expectedPhone !== candidatePhone) return null;
+      return {
+        reference: row.reference,
+        status: row.status,
+        statusLabel: orderStatusLabels[row.status] ?? row.status,
+        deliverySlot: row.delivery_slot,
+        total: row.total,
+        subtotal: row.payload?.subtotal ?? row.total,
+        delivery: row.payload?.delivery ?? 0,
+        createdAt: row.created_at.toISOString(),
+        createdAtAbidjan: row.created_at_abidjan,
+        customer: {
+          name: row.payload?.customer?.name ?? 'Client',
+          city: row.payload?.customer?.city ?? ''
+        },
+        lines: (row.payload?.lines ?? []).map(line => ({
+          id: line.id,
+          name: line.name,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice
+        }))
+      };
+    },
+
     // Crée la commande et réserve le stock dans une seule transaction.
     // Retourne {reference, total, created}. Idempotence assurée par la contrainte UNIQUE sur request_id.
     async placeOrder({requestId, customer, deliverySlot = null, payment, pricing}) {
@@ -170,6 +294,16 @@ export function createStore(pool) {
           'INSERT INTO orders (id, request_id, reference, payload, total, delivery_slot) VALUES ($1, $2, $3, $4, $5, $6)',
           [id, requestId, reference, JSON.stringify({customer, payment, deliverySlot, ...pricing}), pricing.total, deliverySlot]
         );
+        await client.query(
+          `INSERT INTO store_events (type, category, actor, title, detail, meta)
+           VALUES ('order_created', 'commandes', $1, $2, $3, $4)`,
+          [
+            customer.name,
+            `Nouvelle commande ${reference}`,
+            `${pricing.lines.reduce((n, l) => n + l.quantity, 0)} article(s) · ${customer.city} · ${pricing.total} FCFA`,
+            JSON.stringify({reference, total: pricing.total, city: customer.city, deliverySlot})
+          ]
+        );
         await client.query('COMMIT');
         return {reference, total: pricing.total, created: true};
       } catch (error) {
@@ -185,7 +319,146 @@ export function createStore(pool) {
       }
     },
 
-    // --- Espace de gestion (/admin) : catalogue, promotions, photos, commandes, ventes ---
+    // --- Espace de gestion (/admin) : catalogue, nouveaux produits, promotions, photos, commandes, ventes, agents, temps réel ---
+
+    async listCustomProducts() {
+      const {rows} = await pool.query(
+        `SELECT id, name, category, price, compare_at_price, badge, color, description, specs, review,
+                rating, reviews, active, created_by, created_at, updated_at
+         FROM custom_products
+         ORDER BY created_at DESC`
+      );
+      return rows.map(customProductRow);
+    },
+
+    async createCustomProduct({
+      id,
+      name,
+      category,
+      price,
+      compareAtPrice = null,
+      stock = 0,
+      badge = 'NOUVEAU',
+      color = 'Standard',
+      description = '',
+      specs = [],
+      review = 'Sélection Global Shop Daloa.',
+      rating = 4.8,
+      reviews = 1,
+      active = true,
+      createdBy = 'Admin'
+    }) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const normalizedSpecs = Array.isArray(specs) && specs.length
+          ? specs
+          : ['Disponible chez Global Shop Daloa', 'Paiement à la livraison à Daloa et Bouaké'];
+        const {rows} = await client.query(
+          `INSERT INTO custom_products (
+             id, name, category, price, compare_at_price, badge, color, description, specs,
+             review, rating, reviews, active, created_by, created_at, updated_at
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14, now(), now())
+           RETURNING id, name, category, price, compare_at_price, badge, color, description, specs,
+                     review, rating, reviews, active, created_by, created_at, updated_at`,
+          [id, name, category, price, compareAtPrice, badge, color, description, JSON.stringify(normalizedSpecs), review || 'Sélection Global Shop Daloa.', rating, reviews, active, createdBy]
+        );
+        await client.query(
+          `INSERT INTO stock (id, quantity) VALUES ($1, $2)
+           ON CONFLICT (id) DO UPDATE SET quantity = EXCLUDED.quantity`,
+          [id, stock]
+        );
+        await client.query(
+          `INSERT INTO product_settings (id, price, compare_at_price, active, updated_at)
+           VALUES ($1, $2, $3, $4, now())
+           ON CONFLICT (id) DO UPDATE SET price = EXCLUDED.price, compare_at_price = EXCLUDED.compare_at_price,
+             active = EXCLUDED.active, updated_at = now()`,
+          [id, price, compareAtPrice, active]
+        );
+        await client.query(
+          `INSERT INTO store_events (type, category, actor, title, detail, meta)
+           VALUES ('product_created', 'stock', $1, $2, $3, $4)`,
+          [
+            createdBy,
+            `Nouveau produit : ${name}`,
+            `${category} · ${price} FCFA · Stock initial : ${stock}`,
+            JSON.stringify({productId: id, name, category, price, stock})
+          ]
+        );
+        await client.query('COMMIT');
+        return customProductRow(rows[0]);
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+
+    async updateCustomProduct({id, name, category, price, compareAtPrice, badge, color, description, specs, review, active}) {
+      const {rows: existingRows} = await pool.query('SELECT * FROM custom_products WHERE id = $1', [id]);
+      const current = existingRows[0];
+      if (!current) return null;
+      const nextPrice = price ?? current.price;
+      const nextCompareAt = compareAtPrice === undefined ? current.compare_at_price : compareAtPrice;
+      const nextSpecs = specs !== undefined
+        ? (Array.isArray(specs) && specs.length ? specs : ['Disponible chez Global Shop Daloa'])
+        : current.specs;
+      const {rows} = await pool.query(
+        `UPDATE custom_products
+         SET name = $2,
+             category = $3,
+             price = $4,
+             compare_at_price = $5,
+             badge = $6,
+             color = $7,
+             description = $8,
+             specs = $9::jsonb,
+             review = $10,
+             active = $11,
+             updated_at = now()
+         WHERE id = $1
+         RETURNING id, name, category, price, compare_at_price, badge, color, description, specs,
+                   review, rating, reviews, active, created_by, created_at, updated_at`,
+        [
+          id,
+          name ?? current.name,
+          category ?? current.category,
+          nextPrice,
+          nextCompareAt,
+          badge ?? current.badge,
+          color ?? current.color,
+          description ?? current.description,
+          JSON.stringify(nextSpecs),
+          review ?? current.review,
+          active ?? current.active
+        ]
+      );
+      return customProductRow(rows[0]);
+    },
+
+    async deleteCustomProduct(id) {
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const removed = await client.query('DELETE FROM custom_products WHERE id = $1 RETURNING id, name', [id]);
+        if (removed.rowCount === 0) {
+          await client.query('ROLLBACK');
+          return null;
+        }
+        await client.query('DELETE FROM product_settings WHERE id = $1', [id]);
+        await client.query('DELETE FROM product_photos WHERE product_id = $1', [id]);
+        await client.query('DELETE FROM stock WHERE id = $1', [id]);
+        await client.query('COMMIT');
+        return removed.rows[0];
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
 
     // Réglages catalogue (prix, prix barré, visibilité). Absence de ligne = valeurs de référence.
     async listProductSettings() {
@@ -237,7 +510,12 @@ export function createStore(pool) {
     },
 
     async setStock(id, quantity) {
-      const {rows} = await pool.query('UPDATE stock SET quantity = $2 WHERE id = $1 RETURNING id, quantity', [id, quantity]);
+      const {rows} = await pool.query(
+        `INSERT INTO stock (id, quantity) VALUES ($1, $2)
+         ON CONFLICT (id) DO UPDATE SET quantity = EXCLUDED.quantity
+         RETURNING id, quantity`,
+        [id, quantity]
+      );
       return rows[0] ?? null;
     },
 
@@ -251,7 +529,7 @@ export function createStore(pool) {
 
     // Change le statut d'une commande. Une annulation restitue le stock réservé,
     // dans la même transaction, pour ne jamais perdre ni dupliquer des quantités.
-    async setOrderStatus({id, status}) {
+    async setOrderStatus({id, status, actor = 'Admin'}) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -268,6 +546,18 @@ export function createStore(pool) {
           }
         }
         const updated = await client.query(`UPDATE orders SET status = $2 WHERE id = $1 RETURNING ${ORDER_COLUMNS}`, [id, status]);
+        await client.query(
+          `INSERT INTO store_events (type, category, actor, title, detail, meta)
+           VALUES ('order_status', 'commandes', $1, $2, $3, $4)`,
+          [
+            actor,
+            `Commande ${current.reference} → ${orderStatusLabels[status] ?? status}`,
+            status === 'annulee' && previous !== 'annulee'
+              ? `Ancien statut : ${orderStatusLabels[previous] ?? previous} · Stock restitué`
+              : `Ancien statut : ${orderStatusLabels[previous] ?? previous}`,
+            JSON.stringify({orderId: id, reference: current.reference, previousStatus: previous, status})
+          ]
+        );
         await client.query('COMMIT');
         return {...orderRow(updated.rows[0]), previousStatus: previous};
       } catch (error) {
@@ -293,6 +583,190 @@ export function createStore(pool) {
         [from, to]
       );
       return rows.map(row => ({date: row.day, orders: row.orders, total: row.total}));
+    },
+
+    // --- Agents & codes d'accès uniques ---
+
+    async listAgents() {
+      const {rows} = await pool.query(
+        `SELECT id, name, role_label, code, active, created_at, last_used_at,
+                to_char(created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI') AS created_at_abidjan,
+                to_char(last_used_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI') AS last_used_at_abidjan
+         FROM admin_agents
+         ORDER BY created_at DESC`
+      );
+      return rows.map(agentRow);
+    },
+
+    async createAgent({name, roleLabel = 'Agent stock & catalogue', generateCode, actor = 'Admin'}) {
+      const {rows: existing} = await pool.query('SELECT code FROM admin_agents');
+      const taken = new Set(existing.map(row => row.code));
+      for (let attempt = 0; attempt < 15; attempt++) {
+        const code = generateCode(taken);
+        taken.add(code);
+        const id = randomUUID();
+        const {rows} = await pool.query(
+          `INSERT INTO admin_agents (id, name, role_label, code, active, created_at)
+           VALUES ($1, $2, $3, $4, true, now())
+           ON CONFLICT (code) DO NOTHING
+           RETURNING id, name, role_label, code, active, created_at, last_used_at,
+                     to_char(created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI') AS created_at_abidjan`,
+          [id, name, roleLabel, code]
+        );
+        if (rows[0]) {
+          await store.recordEvent({
+            type: 'agent_created',
+            category: 'equipe',
+            actor,
+            title: `Code agent généré pour ${name}`,
+            detail: `${roleLabel} · Code unique attribué`,
+            meta: {agentId: id, name, roleLabel}
+          }).catch(() => {});
+          return agentRow(rows[0]);
+        }
+      }
+      throw new Error('Impossible de générer un code agent unique.');
+    },
+
+    async findAgentByCode(code) {
+      const normalized = String(code ?? '').trim().toUpperCase();
+      if (!normalized) return null;
+      const {rows} = await pool.query(
+        `UPDATE admin_agents
+         SET last_used_at = now()
+         WHERE UPPER(code) = $1 AND active = true
+         RETURNING id, name, role_label, code, active, created_at, last_used_at,
+                   to_char(created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI') AS created_at_abidjan,
+                   to_char(last_used_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI') AS last_used_at_abidjan`,
+        [normalized]
+      );
+      return rows[0] ? agentRow(rows[0]) : null;
+    },
+
+    async getAgentById(id) {
+      const {rows} = await pool.query(
+        `SELECT id, name, role_label, code, active, created_at, last_used_at,
+                to_char(created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI') AS created_at_abidjan,
+                to_char(last_used_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI') AS last_used_at_abidjan
+         FROM admin_agents
+         WHERE id = $1`,
+        [id]
+      );
+      return rows[0] ? agentRow(rows[0]) : null;
+    },
+
+    async revokeAgent(id, actor = 'Admin') {
+      const {rows} = await pool.query(
+        `DELETE FROM admin_agents WHERE id = $1 RETURNING id, name, code`,
+        [id]
+      );
+      if (rows[0]) {
+        await store.recordEvent({
+          type: 'agent_revoked',
+          category: 'equipe',
+          actor,
+          title: `Code agent révoqué : ${rows[0].name}`,
+          detail: 'L’agent ne peut plus se connecter avec ce code.',
+          meta: {agentId: id, name: rows[0].name}
+        }).catch(() => {});
+      }
+      return rows[0] ?? null;
+    },
+
+    // --- Suivi en temps réel (événements & visiteurs actifs) ---
+
+    async recordEvent({type, category = 'boutique', actor = 'Visiteur', title, detail = '', meta = {}}) {
+      const {rows} = await pool.query(
+        `INSERT INTO store_events (type, category, actor, title, detail, meta, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, now())
+         RETURNING id, type, category, actor, title, detail, meta, created_at,
+                   to_char(created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI:SS') AS created_at_abidjan`,
+        [type, category, actor, title, detail, JSON.stringify(meta ?? {})]
+      );
+      return eventRow(rows[0]);
+    },
+
+    async touchVisitor({sessionId, page = '/', city = null, cartCount = 0, lastAction = 'Navigation boutique'}) {
+      await pool.query(
+        `INSERT INTO visitor_heartbeats (session_id, page, city, cart_count, last_action, updated_at)
+         VALUES ($1, $2, $3, $4, $5, now())
+         ON CONFLICT (session_id) DO UPDATE
+         SET page = EXCLUDED.page,
+             city = COALESCE(EXCLUDED.city, visitor_heartbeats.city),
+             cart_count = EXCLUDED.cart_count,
+             last_action = EXCLUDED.last_action,
+             updated_at = now()`,
+        [sessionId, page, city, cartCount, lastAction]
+      );
+    },
+
+    async getRealtimeOverview({limit = 60, category = null, sinceId = null} = {}) {
+      const [eventsResult, visitorsResult, ordersSummaryResult, clockResult] = await Promise.all([
+        pool.query(
+          `SELECT id, type, category, actor, title, detail, meta, created_at,
+                  to_char(created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI:SS') AS created_at_abidjan
+           FROM store_events
+           WHERE ($1::text IS NULL OR category = $1)
+             AND ($2::bigint IS NULL OR id > $2)
+           ORDER BY id DESC
+           LIMIT $3`,
+          [category, sinceId, Math.min(Math.max(Number(limit) || 60, 1), 200)]
+        ),
+        pool.query(
+          `SELECT session_id, page, city, cart_count, last_action, updated_at,
+                  to_char(updated_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'HH24:MI:SS') AS updated_at_abidjan
+           FROM visitor_heartbeats
+           WHERE updated_at >= now() - interval '5 minutes'
+           ORDER BY updated_at DESC
+           LIMIT 50`
+        ),
+        pool.query(
+          `SELECT
+             count(*) FILTER (WHERE status = 'nouvelle')::int AS pending_orders,
+             count(*) FILTER (WHERE status = 'en_preparation')::int AS preparing_orders,
+             count(*) FILTER (WHERE status = 'livree')::int AS delivered_orders,
+             count(*) FILTER (WHERE status = 'annulee')::int AS cancelled_orders,
+             count(*) FILTER (
+               WHERE status <> 'annulee'
+                 AND (created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}')::date = (now() AT TIME ZONE '${ABIDJAN_TIMEZONE}')::date
+             )::int AS today_orders,
+             coalesce(sum(total) FILTER (
+               WHERE status <> 'annulee'
+                 AND (created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}')::date = (now() AT TIME ZONE '${ABIDJAN_TIMEZONE}')::date
+             ), 0)::int AS today_revenue
+           FROM orders`
+        ),
+        pool.query(`SELECT to_char(now() AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI:SS') AS now_abidjan`)
+      ]);
+
+      const orderStats = ordersSummaryResult.rows[0] ?? {};
+      const activeVisitors = visitorsResult.rows.map(row => ({
+        sessionId: row.session_id.slice(0, 8),
+        page: row.page,
+        city: row.city,
+        cartCount: row.cart_count,
+        lastAction: row.last_action,
+        updatedAtAbidjan: row.updated_at_abidjan
+      }));
+
+      return {
+        timezone: ABIDJAN_TIMEZONE,
+        serverTimeAbidjan: clockResult.rows[0]?.now_abidjan ?? '',
+        visitors: {
+          online: activeVisitors.length,
+          activeCarts: activeVisitors.filter(v => v.cartCount > 0).length,
+          sessions: activeVisitors
+        },
+        orders: {
+          pending: orderStats.pending_orders ?? 0,
+          preparing: orderStats.preparing_orders ?? 0,
+          delivered: orderStats.delivered_orders ?? 0,
+          cancelled: orderStats.cancelled_orders ?? 0,
+          todayOrders: orderStats.today_orders ?? 0,
+          todayRevenue: orderStats.today_revenue ?? 0
+        },
+        events: eventsResult.rows.map(eventRow)
+      };
     },
 
     close() {

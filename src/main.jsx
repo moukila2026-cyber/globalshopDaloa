@@ -41,7 +41,24 @@ const stockLabel = (p) =>
     : p.stock
       ? `${p.stock} disponible${p.stock === 1 ? "" : "s"}`
       : "Épuisé";
-const categories = ["Tout voir", "Mode", "High-tech", "Maison", "Beauté"];
+const baseCategories = ["Tout voir", "Mode", "High-tech", "Maison", "Beauté"];
+const trackingSteps = [
+  { id: "nouvelle", label: "Nouvelle", hint: "Commande enregistrée, confirmation téléphonique en cours." },
+  { id: "en_preparation", label: "En préparation", hint: "Vos articles sont préparés par notre équipe." },
+  { id: "livree", label: "Livrée", hint: "Commande remise et réglée à la livraison." },
+];
+function getVisitorSessionId() {
+  try {
+    let id = sessionStorage.getItem("gs-visitor-session");
+    if (!id) {
+      id = crypto.randomUUID();
+      sessionStorage.setItem("gs-visitor-session", id);
+    }
+    return id;
+  } catch {
+    return "visiteur-local";
+  }
+}
 const imageFallback = "/images/products/produit-indisponible.svg";
 // Créneaux de livraison en heure d'Abidjan. Même liste que l'API (/api/config) ; celle-ci sert de
 // repli si la configuration est injoignable, pour que le formulaire reste utilisable.
@@ -136,7 +153,18 @@ function App() {
     [step, setStep] = useState(1),
     [submitting, setSubmitting] = useState(false),
     [orderError, setOrderError] = useState(""),
-    [success, setSuccess] = useState(null);
+    [success, setSuccess] = useState(null),
+    [trackingOpen, setTrackingOpen] = useState(false),
+    [trackForm, setTrackForm] = useState({ reference: "", phone: "" }),
+    [trackLoading, setTrackLoading] = useState(false),
+    [trackError, setTrackError] = useState(""),
+    [trackedOrder, setTrackedOrder] = useState(null);
+  const categories = useMemo(() => {
+    const extra = products
+      .map((p) => p.category)
+      .filter((cat) => cat && !baseCategories.includes(cat));
+    return [...baseCategories, ...new Set(extra)];
+  }, [products]);
   const [form, setForm] = useState({
       name: "",
       phone: "",
@@ -243,7 +271,7 @@ function App() {
     const timer = setTimeout(() => setToast(""), 3200);
     return () => clearTimeout(timer);
   }, [toast]);
-  const modalOpen = !!(cartOpen || selected || checkout || info || lightbox);
+  const modalOpen = !!(cartOpen || selected || checkout || info || trackingOpen || lightbox);
   const lightboxOpen = Boolean(lightbox);
   useEffect(() => {
     if (lightboxOpen) {
@@ -289,6 +317,7 @@ function App() {
           setSelected(null);
           setCheckout(false);
           setInfo(null);
+          setTrackingOpen(false);
         }
       }
       if (activeLightbox && e.key === "ArrowLeft") {
@@ -351,6 +380,29 @@ function App() {
   const cartCount = cart.reduce((n, i) => n + i.quantity, 0),
     subtotal = cartItems.reduce((n, p) => n + p.price * p.quantity, 0),
     delivery = shippingFee(subtotal);
+  function emitStoreEvent(type, title, detail = "", meta = {}) {
+    fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: getVisitorSessionId(),
+        type,
+        page: window.location.pathname || "/",
+        city: form.city || null,
+        cartCount,
+        title,
+        detail,
+        meta,
+      }),
+    }).catch(() => {});
+  }
+  useEffect(() => {
+    emitStoreEvent("visit", "Navigation sur la boutique");
+    const timer = setInterval(() => {
+      emitStoreEvent("visit", "Visiteur actif sur la boutique");
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [cartCount]);
   const filtered = useMemo(() => {
     let list = products.filter(
       (p) =>
@@ -388,6 +440,7 @@ function App() {
         : [...c, { id: p.id, quantity: n }];
     });
     setToast(`${p.name} ajouté au panier`);
+    emitStoreEvent("cart_add", `Ajout au panier : ${p.name}`, `${n} × ${p.name} (${money(p.price)})`, { productId: p.id, quantity: n });
   }
   function update(id, delta) {
     setCart((c) =>
@@ -418,6 +471,7 @@ function App() {
     setSelected(p);
     setGallery(0);
     setQuantity(1);
+    emitStoreEvent("product_view", `Fiche produit consultée : ${p.name}`, `${p.category} · ${money(p.price)}`, { productId: p.id });
   }
   function openLightbox(images, index, title, trigger) {
     const validImages = images.filter(Boolean);
@@ -465,6 +519,46 @@ function App() {
     setOrderError("");
     setConsent(false);
     requestId.current = crypto.randomUUID();
+    emitStoreEvent("checkout_start", "Ouverture du tunnel de commande", `${cartCount} article(s) · ${money(subtotal + delivery)}`);
+  }
+  async function lookupOrder(referenceValue, phoneValue) {
+    const ref = String(referenceValue ?? trackForm.reference).trim().toUpperCase();
+    const tel = String(phoneValue ?? trackForm.phone).trim();
+    setTrackLoading(true);
+    setTrackError("");
+    try {
+      const r = await fetch("/api/orders/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reference: ref,
+          phone: tel.replace(/[\s.-]/g, ""),
+        }),
+      });
+      const result = await r.json().catch(() => ({}));
+      if (!r.ok) throw Error(result.error || "Impossible de retrouver cette commande.");
+      setTrackedOrder(result.order);
+    } catch (e) {
+      setTrackedOrder(null);
+      setTrackError(e.message);
+    } finally {
+      setTrackLoading(false);
+    }
+  }
+  function openTracking(prefill = null) {
+    setCartOpen(false);
+    setSelected(null);
+    setCheckout(false);
+    setInfo(null);
+    setMobileNav(false);
+    setTrackError("");
+    if (prefill?.reference && prefill?.phone) {
+      setTrackForm({ reference: prefill.reference, phone: prefill.phone });
+      setTrackingOpen(true);
+      lookupOrder(prefill.reference, prefill.phone);
+    } else {
+      setTrackingOpen(true);
+    }
   }
   async function submitOrder() {
     setSubmitting(true);
@@ -510,6 +604,7 @@ function App() {
     setSelected(null);
     setCheckout(false);
     setInfo(null);
+    setTrackingOpen(false);
   };
   return (
     <>
@@ -557,8 +652,18 @@ function App() {
             >
               Notre univers
             </button>
+            <button onClick={() => openTracking()}>
+              Suivre ma commande
+            </button>
           </nav>
           <div className="header-actions">
+            <button
+              aria-label="Suivre ma commande"
+              title="Suivre ma commande"
+              onClick={() => openTracking()}
+            >
+              <Package size={21} />
+            </button>
             <button
               aria-label="Rechercher un produit"
               onClick={() => setSearchOpen(!searchOpen)}
@@ -613,6 +718,9 @@ function App() {
             </button>
             <button onClick={() => browse("Tout voir", true)}>
               Les bonnes affaires
+            </button>
+            <button onClick={() => openTracking()}>
+              Suivre ma commande
             </button>
           </div>
         )}
@@ -1131,6 +1239,9 @@ function App() {
           </div>
           <div className="footer-column">
             <h4>À votre service</h4>
+            <button onClick={() => openTracking()}>
+              Suivre ma commande
+            </button>
             <button onClick={() => setInfo("delivery")}>
               Livraison & retours
             </button>
@@ -1203,7 +1314,7 @@ function App() {
                   ? "cart-drawer"
                   : selected
                     ? "product-modal"
-                    : checkout
+                    : checkout || trackingOpen
                       ? "checkout-modal"
                       : "info-modal"
             }
@@ -1639,10 +1750,22 @@ function App() {
                           téléphone.
                         </small>
                         <button
+                          type="button"
                           className="button dark full"
+                          onClick={() =>
+                            openTracking({
+                              reference: success.reference,
+                              phone: form.phone,
+                            })
+                          }
+                        >
+                          <Package size={17} /> Suivre ma commande
+                        </button>
+                        <button
+                          className="continue-button"
                           onClick={closeOverlay}
                         >
-                          Continuer mes découvertes <ArrowRight size={17} />
+                          Continuer mes découvertes <ArrowRight size={15} />
                         </button>
                       </div>
                     ) : (
@@ -1856,6 +1979,169 @@ function App() {
                           </div>
                         )}
                       </>
+                    )}
+                  </>
+                )}
+                {trackingOpen && (
+                  <>
+                    <div className="drawer-header">
+                      <div>
+                        <span className="eyebrow">SUIVI EN DIRECT</span>
+                        <h2 id="dialog-title">Suivre ma commande</h2>
+                      </div>
+                      <button
+                        className="close-button"
+                        onClick={closeOverlay}
+                        aria-label="Fermer le suivi de commande"
+                      >
+                        <X />
+                      </button>
+                    </div>
+                    <form
+                      className="checkout-form tracking-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        lookupOrder(trackForm.reference, trackForm.phone);
+                      }}
+                    >
+                      <p>
+                        Saisissez votre référence de commande et le numéro de
+                        téléphone utilisé lors de l’achat pour consulter
+                        l’avancement en temps réel.
+                      </p>
+                      <label>
+                        Référence de commande
+                        <input
+                          required
+                          value={trackForm.reference}
+                          onChange={(e) =>
+                            setTrackForm({
+                              ...trackForm,
+                              reference: e.target.value.toUpperCase(),
+                            })
+                          }
+                          placeholder="Ex. GS-2026-1A2B3C4D"
+                        />
+                      </label>
+                      <label>
+                        Numéro de téléphone ivoirien
+                        <input
+                          type="tel"
+                          required
+                          value={trackForm.phone}
+                          onChange={(e) =>
+                            setTrackForm({
+                              ...trackForm,
+                              phone: e.target.value,
+                            })
+                          }
+                          placeholder="Ex. 07 00 00 00 00"
+                        />
+                      </label>
+                      {trackError && (
+                        <p className="form-error" role="alert">
+                          {trackError}
+                        </p>
+                      )}
+                      <button
+                        className="button dark full"
+                        type="submit"
+                        disabled={
+                          trackLoading ||
+                          !trackForm.reference.trim() ||
+                          !trackForm.phone.trim()
+                        }
+                      >
+                        {trackLoading
+                          ? "Recherche en cours…"
+                          : "Consulter ma commande"}{" "}
+                        {!trackLoading && <ArrowRight size={17} />}
+                      </button>
+                    </form>
+                    {trackedOrder && (
+                      <div className="tracking-result" role="region" aria-label="État de la commande">
+                        <div className="tracking-header">
+                          <div>
+                            <span className="eyebrow">RÉFÉRENCE</span>
+                            <b>{trackedOrder.reference}</b>
+                          </div>
+                          <span className={`tracking-badge status-${trackedOrder.status}`}>
+                            {trackedOrder.statusLabel}
+                          </span>
+                        </div>
+                        {trackedOrder.status === "annulee" ? (
+                          <div className="tracking-cancelled" role="status">
+                            <b>Commande annulée</b>
+                            <p>
+                              Cette commande a été annulée et les articles réservés ont été remis en stock.
+                            </p>
+                          </div>
+                        ) : (
+                          <ol className="tracking-timeline" aria-label="Étapes d’avancement">
+                            {trackingSteps.map((s, idx) => {
+                              const currentIndex = trackingSteps.findIndex(
+                                (item) => item.id === trackedOrder.status,
+                              );
+                              const state =
+                                idx < currentIndex
+                                  ? "done"
+                                  : idx === currentIndex
+                                    ? "current"
+                                    : "upcoming";
+                              return (
+                                <li key={s.id} className={`tracking-step ${state}`}>
+                                  <span className="step-dot">
+                                    {state === "done" ? <Check size={12} /> : idx + 1}
+                                  </span>
+                                  <div>
+                                    <b>{s.label}</b>
+                                    <small>{s.hint}</small>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ol>
+                        )}
+                        <div className="tracking-meta">
+                          <span>
+                            <Clock size={14} /> Enregistrée le{" "}
+                            {trackedOrder.createdAtAbidjan?.replace("T", " à ")} (heure d’Abidjan)
+                          </span>
+                          <span>
+                            <MapPin size={14} /> {trackedOrder.customer?.name} ·{" "}
+                            {trackedOrder.customer?.city}
+                          </span>
+                          <span>
+                            <Truck size={14} /> Créneau :{" "}
+                            {trackedOrder.deliverySlot || "À confirmer par téléphone"}
+                          </span>
+                        </div>
+                        <div className="tracking-lines">
+                          <h4>Articles commandés</h4>
+                          {(trackedOrder.lines || []).map((line) => (
+                            <div className="confirmation-line" key={line.id}>
+                              <span>
+                                {line.quantity} × {line.name}
+                              </span>
+                              <b>{money(line.quantity * line.unitPrice)}</b>
+                            </div>
+                          ))}
+                          <div className="confirmation-total">
+                            <span>Total à la livraison</span>
+                            <b>{money(trackedOrder.total)}</b>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="text-button tracking-refresh"
+                          disabled={trackLoading}
+                          onClick={() =>
+                            lookupOrder(trackedOrder.reference, trackForm.phone)
+                          }
+                        >
+                          Actualiser le statut <ArrowUpRight size={15} />
+                        </button>
+                      </div>
                     )}
                   </>
                 )}

@@ -1,15 +1,34 @@
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { products } from '../shared/products.js';
-import { deliverySlots, orderSchema, orderValidationError, priceOrder } from './orders.js';
+import { z } from 'zod';
+import {
+  deliverySlots,
+  orderSchema,
+  orderStatusLabels,
+  orderTrackingSchema,
+  orderTrackingValidationError,
+  orderValidationError,
+  priceOrder
+} from './orders.js';
 import { createAdminRouter, mergeCatalog, normalizeWhatsappNumber, PHOTO_VIEWS } from './admin.js';
 import { DatabaseUnavailableError, StockError } from './store.js';
 
-const productIds = new Set(products.map(product => product.id));
+const validProductId = /^[a-zA-Z0-9_-]{1,64}$/;
 // Téléversement d'une photo produit : la seule écriture de l'API qui n'est pas du JSON.
 // Le chemin et le type sont vérifiés, et le contenu réel est validé dans server/admin.js.
 const photoUploadPath = /^\/admin\/products\/[a-zA-Z0-9_-]+\/photos\/(?:main|extra)$/;
+
+const storefrontEventSchema = z.object({
+  sessionId: z.string().trim().min(6).max(64),
+  type: z.enum(['visit', 'product_view', 'cart_add', 'cart_remove', 'checkout_start', 'search']),
+  page: z.string().trim().max(120).optional().default('/'),
+  city: z.string().trim().max(40).nullable().optional().default(null),
+  cartCount: z.number().int().min(0).max(200).optional().default(0),
+  title: z.string().trim().min(2).max(140),
+  detail: z.string().trim().max(240).optional().default(''),
+  meta: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional().default({})
+}).strict();
 
 // Construit l'application Express de l'API. Utilisée par le serveur local/Node (server/index.js)
 // et par la fonction serverless Vercel (api/index.js). Les protections sont identiques dans les deux cas.
@@ -24,7 +43,7 @@ export function createApp({store, production = false, frontend} = {}) {
     imgSrc: ["'self'"], fontSrc: ["'self'"],
     connectSrc: ["'self'"], frameAncestors: ["'self'"], upgradeInsecureRequests: []
   }} : false, crossOriginEmbedderPolicy: false, frameguard: production ? {action: 'sameorigin'} : false, strictTransportSecurity: production}));
-  app.use('/api', rateLimit({windowMs: 60000, limit: 100, standardHeaders: 'draft-8', legacyHeaders: false}));
+  app.use('/api', rateLimit({windowMs: 60000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false}));
   app.use(express.json({limit: '16kb'}));
   app.use('/api', (req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -53,19 +72,24 @@ export function createApp({store, production = false, frontend} = {}) {
     whatsappNumber: normalizeWhatsappNumber(process.env.WHATSAPP_NUMBER),
     deliverySlots
   }));
-  // Catalogue : produits de référence fusionnés avec les prix, promotions, stocks et photos
-  // enregistrés dans l'espace de gestion. Les produits masqués en sont retirés.
+  // Catalogue : produits de référence et nouveaux produits fusionnés avec les prix, promotions,
+  // stocks et photos enregistrés dans l'espace de gestion. Les produits masqués en sont retirés.
   app.get('/api/products', withDatabase, async (_req, res, next) => {
     try {
-      const [settings, stock, photos] = await Promise.all([store.listProductSettings(), store.listStock(), store.listProductPhotos()]);
-      res.json(mergeCatalog({settings, stock, photos}));
+      const [settings, stock, photos, customProducts] = await Promise.all([
+        store.listProductSettings(),
+        store.listStock(),
+        store.listProductPhotos(),
+        store.listCustomProducts ? store.listCustomProducts() : Promise.resolve([])
+      ]);
+      res.json(mergeCatalog({settings, stock, photos, customProducts}));
     } catch (error) { next(error); }
   });
   // Photo produit stockée dans PostgreSQL (bytea). Repli sur les fichiers statiques de public/ :
   // `mergeCatalog` ne renvoie cette URL que lorsqu'une photo a réellement été téléversée.
   app.get('/api/products/:id/photo/:view', withDatabase, async (req, res, next) => {
     const {id, view} = req.params;
-    if (!productIds.has(id) || !PHOTO_VIEWS.includes(view)) return res.status(404).json({error: 'Photo introuvable.'});
+    if (!validProductId.test(id) || !PHOTO_VIEWS.includes(view)) return res.status(404).json({error: 'Photo introuvable.'});
     try {
       const photo = await store.getProductPhoto({id, view});
       if (!photo) return res.status(404).json({error: 'Aucune photo enregistrée pour cette vue.'});
@@ -80,6 +104,72 @@ export function createApp({store, production = false, frontend} = {}) {
     const database = await store.ensureReady().then(() => store.ping()).then(() => 'ok', () => 'unavailable');
     res.json({status: 'ok', database});
   });
+
+  // Suivi de commande acheteur par référence et téléphone (« Suivre ma commande »).
+  const trackOrderLimit = rateLimit({
+    windowMs: 15 * 60000,
+    limit: 30,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: {error: 'Trop de recherches de suivi. Réessayez dans quelques minutes.'}
+  });
+  const handleTrackOrder = async (req, res, next) => {
+    const input = req.method === 'GET'
+      ? {reference: req.query.reference, phone: req.query.phone}
+      : req.body;
+    const result = orderTrackingSchema.safeParse(input);
+    if (!result.success) {
+      return res.status(400).json({error: orderTrackingValidationError(result.error.issues)});
+    }
+    try {
+      const order = await store.trackOrder(result.data);
+      if (!order) {
+        return res.status(404).json({error: 'Aucune commande trouvée avec cette référence et ce numéro de téléphone.'});
+      }
+      if (store.recordEvent) {
+        store.recordEvent({
+          type: 'order_tracked',
+          category: 'commandes',
+          actor: order.customer?.name || 'Acheteur',
+          title: `Suivi consulté : ${order.reference}`,
+          detail: `Statut affiché : ${orderStatusLabels[order.status] ?? order.status}`,
+          meta: {reference: order.reference, status: order.status}
+        }).catch(() => {});
+      }
+      res.json({
+        order: {
+          ...order,
+          statusLabel: orderStatusLabels[order.status] ?? order.status
+        }
+      });
+    } catch (error) { next(error); }
+  };
+  app.get('/api/orders/track', trackOrderLimit, withDatabase, handleTrackOrder);
+  app.post('/api/orders/track', trackOrderLimit, withDatabase, handleTrackOrder);
+
+  // Télémétrie temps réel de la boutique (visiteurs en ligne, vues produit, paniers actifs).
+  app.post('/api/events', rateLimit({windowMs: 60000, limit: 60, standardHeaders: 'draft-8', legacyHeaders: false}), withDatabase, async (req, res, next) => {
+    const parsed = storefrontEventSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({error: 'Événement invalide.'});
+    const {sessionId, type, page, city, cartCount, title, detail, meta} = parsed.data;
+    try {
+      if (store.touchVisitor) {
+        await store.touchVisitor({sessionId, page, city, cartCount, lastAction: title});
+      }
+      if (type !== 'visit' && store.recordEvent) {
+        await store.recordEvent({
+          type,
+          category: 'visiteurs',
+          actor: `Visiteur #${sessionId.slice(0, 6)}`,
+          title,
+          detail,
+          meta
+        });
+      }
+      res.status(202).json({ok: true});
+    } catch (error) { next(error); }
+  });
+
   app.post('/api/orders', rateLimit({windowMs: 15 * 60000, limit: 15, standardHeaders: 'draft-8', legacyHeaders: false, message: {error: 'Trop de tentatives. Réessayez dans quelques minutes.'}}), withDatabase, async (req, res, next) => {
     const result = orderSchema.safeParse(req.body);
     if (!result.success) return res.status(400).json({error: orderValidationError(result.error.issues)});
@@ -87,7 +177,14 @@ export function createApp({store, production = false, frontend} = {}) {
       const {requestId, customer, items, payment, deliverySlot} = result.data;
       const old = await store.findOrderByRequest(requestId);
       if (old) return res.json({...old, duplicate: true});
-      const pricing = priceOrder(items);
+      const [settings, stock, photos, customProducts] = await Promise.all([
+        store.listProductSettings(),
+        store.listStock(),
+        store.listProductPhotos(),
+        store.listCustomProducts ? store.listCustomProducts() : Promise.resolve([])
+      ]);
+      const catalog = mergeCatalog({settings, stock, photos, customProducts});
+      const pricing = priceOrder(items, catalog);
       const order = await store.placeOrder({requestId, customer, payment, deliverySlot, pricing});
       if (!order.created) return res.json({reference: order.reference, total: order.total, duplicate: true});
       res.status(201).json({reference: order.reference, total: order.total});
