@@ -132,3 +132,19 @@ test("buyer order tracking and admin real-time & agent code generator UI are wir
   assert.match(adminApp, /Générateur de codes aléatoires pour les agents/);
   assert.match(adminApp, /Zone de suivi en temps réel/);
 });
+
+test("hero slideshow rotates every 10s through in-stock product images and admin products panel is read-only for agents", async () => {
+  const app = await read("../src/main.jsx");
+  const css = await read("../src/styles.css");
+  const adminApp = await read("../src/admin/AdminApp.jsx");
+  assert.match(app, /heroSlides/);
+  assert.match(app, /product\.image, product\.extra/);
+  assert.match(app, /product\.stock <= 0/);
+  assert.match(app, /10000/);
+  assert.match(app, /hero-slide/);
+  assert.match(css, /\.hero-slide\.active/);
+  assert.match(css, /@keyframes hero-kenburns/);
+  assert.match(adminApp, /isAdmin = session\?\.role === "admin"/);
+  assert.match(adminApp, /disabled=\{!isAdmin\}/);
+  assert.match(adminApp, /par \{order\.updatedBy\}|Dernière action par/);
+});

@@ -138,6 +138,8 @@ function App() {
     [gallery, setGallery] = useState(0),
     [quantity, setQuantity] = useState(1),
     [lightbox, setLightbox] = useState(null);
+  const [heroIndex, setHeroIndex] = useState(0),
+    [heroPaused, setHeroPaused] = useState(false);
   const [favorites, setFavorites] = useState(() => {
       try {
         const v = JSON.parse(localStorage.getItem("gs-favorites") || "[]");
@@ -403,6 +405,28 @@ function App() {
     }, 30000);
     return () => clearInterval(timer);
   }, [cartCount]);
+  // Diaporama hero : alimenté par les images des produits en stock (image principale + vue secondaire).
+  const heroSlides = useMemo(() => {
+    const seen = new Set();
+    const slides = [];
+    for (const product of products) {
+      if (typeof product.stock === "number" && product.stock <= 0) continue;
+      for (const src of [product.image, product.extra]) {
+        if (!src || seen.has(src)) continue;
+        seen.add(src);
+        slides.push({src, name: product.name, id: product.id});
+      }
+    }
+    return slides.length ? slides : [{src: "/images/hero.png", name: "Sélection Global Shop Daloa", id: "hero"}];
+  }, [products]);
+  useEffect(() => {
+    setHeroIndex(0);
+  }, [heroSlides.length]);
+  useEffect(() => {
+    if (heroPaused || heroSlides.length < 2) return;
+    const timer = setInterval(() => setHeroIndex((current) => (current + 1) % heroSlides.length), 10000);
+    return () => clearInterval(timer);
+  }, [heroPaused, heroSlides.length]);
   const filtered = useMemo(() => {
     let list = products.filter(
       (p) =>
@@ -781,12 +805,26 @@ function App() {
               </div>
             </div>
           </div>
-          <div className="hero-visual">
-            <img
-              src="/images/hero.png"
-              alt="Sélection de sacs, casque et essentiels dans une ambiance chaleureuse"
-              fetchPriority="high"
-            />
+          <div
+            className="hero-visual hero-slideshow"
+            onMouseEnter={() => setHeroPaused(true)}
+            onMouseLeave={() => setHeroPaused(false)}
+            onFocus={() => setHeroPaused(true)}
+            onBlur={() => setHeroPaused(false)}
+            aria-roledescription="Diaporama"
+            aria-label="Images des produits en stock"
+          >
+            {heroSlides.map((slide, index) => (
+              <img
+                key={`${slide.id}-${slide.src}`}
+                src={slide.src}
+                alt={index === heroIndex ? `Produit en stock : ${slide.name}` : ""}
+                aria-hidden={index !== heroIndex}
+                fetchPriority={index === 0 ? "high" : "low"}
+                className={`hero-slide${index === heroIndex ? " active" : ""}`}
+                onError={(e) => { if (!e.currentTarget.src.endsWith(imageFallback)) e.currentTarget.src = imageFallback; }}
+              />
+            ))}
             <div className="hero-stamp">
               <Sparkles size={21} />
               <span>
@@ -796,9 +834,24 @@ function App() {
               </span>
             </div>
             <div className="hero-image-footer">
-              <span>LA SÉLECTION GLOBAL SHOP</span>
-              <span>01 — 04</span>
+              <span>{heroSlides[heroIndex]?.name ?? "LA SÉLECTION GLOBAL SHOP"}</span>
+              <span>{String(heroIndex + 1).padStart(2, "0")} — {String(heroSlides.length).padStart(2, "0")}</span>
             </div>
+            {heroSlides.length > 1 && (
+              <div className="hero-dots" role="tablist" aria-label="Choisir une image du diaporama">
+                {heroSlides.map((slide, index) => (
+                  <button
+                    key={`dot-${slide.id}-${slide.src}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={index === heroIndex}
+                    aria-label={`Afficher ${slide.name}`}
+                    className={`hero-dot${index === heroIndex ? " active" : ""}`}
+                    onClick={() => setHeroIndex(index)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <span className="hero-bottom-note">
             À DALOA, À BOUAKÉ, ET DANS VOTRE QUOTIDIEN.

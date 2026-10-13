@@ -245,6 +245,14 @@ const agentCreateSchema = z.object({
 
 export function createAdminRouter({store}) {
   const router = express.Router();
+  // Seul l'administrateur principal écrit le catalogue (produits, prix, stocks, photos) et gère les codes agents.
+  // Les agents (role === 'agent') consultent le catalogue et gèrent les commandes, en lecture/écriture commandes uniquement.
+  const requireAdmin = (req, res, next) => {
+    if (req.adminSession?.role !== 'admin') {
+      return res.status(403).json({error: 'Seul l’administrateur principal peut modifier les produits, les prix, les stocks et les photos.'});
+    }
+    return next();
+  };
   const byReferenceId = new Map(products.map(product => [product.id, product]));
 
   async function loadFullCatalog() {
@@ -395,8 +403,8 @@ export function createAdminRouter({store}) {
     } catch (error) { next(error); }
   });
 
-  // Ajout d'un nouveau produit dans le stock (accessible à l'Admin et aux Agents munis d'un code valide).
-  router.post('/products', async (req, res, next) => {
+  // Ajout d'un nouveau produit dans le stock (réservé à l'Admin ; les agents consultent le catalogue en lecture seule).
+  router.post('/products', requireAdmin, async (req, res, next) => {
     const parsed = productCreateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({error: 'Informations du nouveau produit invalides. Vérifiez le nom, la catégorie, le prix et le stock.'});
@@ -439,7 +447,7 @@ export function createAdminRouter({store}) {
     }
   });
 
-  router.patch('/products/:id', async (req, res, next) => {
+  router.patch('/products/:id', requireAdmin, async (req, res, next) => {
     const parsed = productPatchSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({error: 'Valeurs de produit invalides.'});
     const patch = parsed.data;
@@ -502,7 +510,7 @@ export function createAdminRouter({store}) {
     } catch (error) { next(error); }
   });
 
-  router.delete('/products/:id', async (req, res, next) => {
+  router.delete('/products/:id', requireAdmin, async (req, res, next) => {
     if (req.adminSession?.role !== 'admin') {
       return res.status(403).json({error: 'Seul l’administrateur principal peut supprimer un produit.'});
     }
@@ -530,7 +538,7 @@ export function createAdminRouter({store}) {
 
   const photoBody = express.raw({type: ['image/jpeg', 'image/png', 'image/webp'], limit: PHOTO_MAX_BYTES});
 
-  router.put('/products/:id/photos/:view', photoBody, async (req, res, next) => {
+  router.put('/products/:id/photos/:view', requireAdmin, photoBody, async (req, res, next) => {
     if (!PHOTO_VIEWS.includes(req.params.view)) return res.status(400).json({error: 'Vue photo inconnue.'});
     const buffer = Buffer.isBuffer(req.body) ? req.body : null;
     if (!buffer?.length) return res.status(415).json({error: 'Photo JPEG, PNG ou WebP requise.'});
@@ -556,7 +564,7 @@ export function createAdminRouter({store}) {
     } catch (error) { next(error); }
   });
 
-  router.delete('/products/:id/photos/:view', async (req, res, next) => {
+  router.delete('/products/:id/photos/:view', requireAdmin, async (req, res, next) => {
     if (!PHOTO_VIEWS.includes(req.params.view)) return res.status(400).json({error: 'Vue photo inconnue.'});
     try {
       const removed = await store.deleteProductPhoto({id: req.params.id, view: req.params.view});

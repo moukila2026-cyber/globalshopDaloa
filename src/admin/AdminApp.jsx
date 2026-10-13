@@ -505,6 +505,7 @@ function OrderCard({order, whatsappNumber, onStatus, busy}) {
       </header>
       <p className="order-meta">
         <Clock size={13} /> {abidjanLabel(order.createdAtAbidjan)} · Abidjan
+        {order.updatedBy && <span className="order-updated-by"> · Dernière action par {order.updatedBy}</span>}
       </p>
       <div className="order-customer">
         <span>
@@ -679,6 +680,7 @@ const emptyNewProduct = {
 };
 
 function ProductsPanel({token, session, notify, expired, onChanged}) {
+  const isAdmin = session?.role === "admin";
   const [products, setProducts] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [busyId, setBusyId] = useState("");
@@ -892,25 +894,28 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
         <div>
           <h2>Produits, stocks, prix et promotions</h2>
           <p>
-            L’administrateur et ses agents (connectés avec leur code unique) peuvent ajouter de
-            nouveaux produits au stock avec toutes leurs informations, quantités, prix et photos.
+            {isAdmin
+              ? "Seul l’administrateur ajoute de nouveaux produits et ajuste prix, stocks, visibilité et photos."
+              : "Consultation en lecture seule : produits, prix, promotions et stocks. Seul l’administrateur peut les modifier."}
           </p>
         </div>
         <div className="panel-head-actions">
-          <button
-            type="button"
-            className="admin-button primary"
-            onClick={() => setCreateOpen((open) => !open)}
-          >
-            <Plus size={15} /> {createOpen ? "Fermer le formulaire" : "Nouveau produit"}
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="admin-button primary"
+              onClick={() => setCreateOpen((open) => !open)}
+            >
+              <Plus size={15} /> {createOpen ? "Fermer le formulaire" : "Nouveau produit"}
+            </button>
+          )}
           <button className="admin-button ghost" onClick={load} disabled={loading}>
             <RefreshCw size={15} className={loading ? "spin" : ""} /> Actualiser
           </button>
         </div>
       </div>
 
-      {createOpen && (
+      {isAdmin && createOpen && (
         <form className="new-product-form" onSubmit={createProduct}>
           <div className="new-product-head">
             <div>
@@ -1090,7 +1095,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                   <div className="product-inputs custom-meta-inputs">
                     <label>
                       Nom du produit
-                      <input
+                      <input disabled={!isAdmin}
                         type="text"
                         value={values.name ?? product.name}
                         onChange={(event) =>
@@ -1103,7 +1108,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                     </label>
                     <label>
                       Catégorie
-                      <select
+                      <select disabled={!isAdmin}
                         value={values.category ?? product.category}
                         onChange={(event) =>
                           setDrafts((current) => ({
@@ -1121,7 +1126,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                     </label>
                     <label>
                       Format / Couleur
-                      <input
+                      <input disabled={!isAdmin}
                         type="text"
                         value={values.color ?? product.color ?? ""}
                         onChange={(event) =>
@@ -1134,7 +1139,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                     </label>
                     <label>
                       Description
-                      <input
+                      <input disabled={!isAdmin}
                         type="text"
                         value={values.description ?? product.description ?? ""}
                         onChange={(event) =>
@@ -1150,7 +1155,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                 <div className="product-inputs">
                   <label>
                     Prix de vente
-                    <input
+                    <input disabled={!isAdmin}
                       type="number"
                       min="0"
                       max="50000000"
@@ -1160,7 +1165,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                   </label>
                   <label>
                     Prix barré (promo)
-                    <input
+                    <input disabled={!isAdmin}
                       type="number"
                       min="0"
                       max="50000000"
@@ -1171,7 +1176,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                   </label>
                   <label>
                     Stock
-                    <input
+                    <input disabled={!isAdmin}
                       type="number"
                       min="0"
                       max="1000000"
@@ -1180,7 +1185,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                     />
                   </label>
                   <label className="checkbox">
-                    <input
+                    <input disabled={!isAdmin}
                       type="checkbox"
                       checked={Boolean(values.active)}
                       onChange={(event) => setDrafts((current) => ({...current, [product.id]: {...values, active: event.target.checked}}))}
@@ -1188,6 +1193,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                     Visible sur le site
                   </label>
                 </div>
+                {isAdmin ? (
                 <div className="product-actions">
                   <button className="admin-button primary small" disabled={busyId === product.id} onClick={() => save(product)}>
                     <Check size={14} /> Enregistrer
@@ -1214,6 +1220,9 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
                     {fromDatabase ? "Photo servie depuis PostgreSQL." : "Photo actuelle du catalogue (fichier statique)."}
                   </small>
                 </div>
+                ) : (
+                  <p className="product-note readonly-note">Lecture seule — prix, stock et visibilité gérés par l’administrateur.</p>
+                )}
               </div>
             </article>
           );
