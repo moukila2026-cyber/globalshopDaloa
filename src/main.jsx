@@ -26,6 +26,8 @@ import {
   Instagram,
   Facebook,
   Sparkles,
+  MessageCircle,
+  Clock,
 } from "lucide-react";
 import { products as referenceProducts, shippingFee } from "../shared/products.js";
 import { BRAND_LOGO_ALT, BRAND_LOGO_PATH } from "./brand.js";
@@ -41,6 +43,9 @@ const stockLabel = (p) =>
       : "Épuisé";
 const categories = ["Tout voir", "Mode", "High-tech", "Maison", "Beauté"];
 const imageFallback = "/images/products/produit-indisponible.svg";
+// Créneaux de livraison en heure d'Abidjan. Même liste que l'API (/api/config) ; celle-ci sert de
+// repli si la configuration est injoignable, pour que le formulaire reste utilisable.
+const fallbackDeliverySlots = ["08:00 – 12:00", "12:00 – 16:00", "16:00 – 19:00"];
 function Photo({ src, alt, ...props }) {
   return (
     <img
@@ -138,8 +143,14 @@ function App() {
       city: "Daloa",
       address: "",
       note: "",
+      slot: fallbackDeliverySlots[0],
     }),
     [consent, setConsent] = useState(false);
+  // Numéro WhatsApp de la boutique et créneaux réellement proposés, servis par /api/config.
+  const [shop, setShop] = useState({
+    whatsappNumber: "",
+    deliverySlots: fallbackDeliverySlots,
+  });
   const requestId = useRef(null),
     lastFocus = useRef(null),
     overlayRef = useRef(null),
@@ -166,6 +177,36 @@ function App() {
   }
   useEffect(() => {
     loadProducts();
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/config")
+      .then((r) => (r.ok ? r.json() : Promise.reject(Error())))
+      .then((config) => {
+        if (!alive) return;
+        const deliverySlots =
+          Array.isArray(config.deliverySlots) && config.deliverySlots.length
+            ? config.deliverySlots
+            : fallbackDeliverySlots;
+        setShop({
+          whatsappNumber:
+            typeof config.whatsappNumber === "string"
+              ? config.whatsappNumber
+              : "",
+          deliverySlots,
+        });
+        setForm((current) =>
+          deliverySlots.includes(current.slot)
+            ? current
+            : { ...current, slot: deliverySlots[0] },
+        );
+      })
+      .catch(() => {
+        // Aucun blocage : on garde la liste de repli et le formulaire reste utilisable.
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
   useEffect(() => {
     const favicon = document.querySelector('link[rel="icon"]');
@@ -436,12 +477,25 @@ function App() {
           customer: { ...form, phone: form.phone.replace(/[\s.-]/g, "") },
           items: cart.map((i) => ({ id: i.id, quantity: i.quantity })),
           payment: "cash",
+          deliverySlot: form.slot,
           requestId: requestId.current,
         }),
       });
       const result = await r.json();
       if (!r.ok) throw Error(result.error || "Commande indisponible.");
-      setSuccess(result);
+      // Le récapitulatif est figé ici : le panier est vidé juste après, et le message WhatsApp
+      // doit reprendre exactement ce qui a été enregistré.
+      setSuccess({
+        ...result,
+        slot: form.slot,
+        city: form.city,
+        address: form.address,
+        items: cart.map((i) => ({
+          id: i.id,
+          name: i.name,
+          quantity: i.quantity,
+        })),
+      });
       setCart([]);
       loadProducts();
     } catch (e) {
@@ -1667,6 +1721,22 @@ function App() {
                               </select>
                             </label>
                             <label>
+                              Créneau de livraison souhaité{" "}
+                              <span>(heure d’Abidjan)</span>
+                              <select
+                                value={form.slot}
+                                onChange={(e) =>
+                                  setForm({ ...form, slot: e.target.value })
+                                }
+                              >
+                                {shop.deliverySlots.map((slot) => (
+                                  <option key={slot} value={slot}>
+                                    {slot}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
                               Quartier, rue et repère
                               <input
                                 required
@@ -1716,6 +1786,10 @@ function App() {
                                   {form.address}, {form.city}
                                 </span>
                                 <span>{form.phone}</span>
+                                <span className="slot-summary">
+                                  <Clock size={13} /> {form.slot} (heure
+                                  d’Abidjan)
+                                </span>
                               </div>
                             </div>
                             <h4>Vos articles</h4>
@@ -1886,4 +1960,14 @@ function Info({ type, close }) {
     </>
   );
 }
-createRoot(document.getElementById("root")).render(<App />);
+// L'espace de gestion est chargé à la demande : un visiteur de la boutique ne télécharge jamais
+// son code. `/admin` est servi par la même application (réécriture SPA côté serveur et Vercel).
+const root = createRoot(document.getElementById("root"));
+if (window.location.pathname.replace(/\/+$/, "") === "/admin") {
+  import("./admin/AdminApp.jsx").then(
+    ({ default: AdminApp }) => root.render(<AdminApp />),
+    () => root.render(<App />),
+  );
+} else {
+  root.render(<App />);
+}
