@@ -21,6 +21,17 @@ const lazyStore = {
   listStock: async () => getStore().listStock(),
   findOrderByRequest: async (requestId) => getStore().findOrderByRequest(requestId),
   placeOrder: async (order) => getStore().placeOrder(order),
+  // Espace de gestion (/admin) : mêmes méthodes que le serveur Node, résolues à l'appel.
+  listProductSettings: async () => getStore().listProductSettings(),
+  saveProductSettings: async (settings) => getStore().saveProductSettings(settings),
+  listProductPhotos: async () => getStore().listProductPhotos(),
+  getProductPhoto: async (photo) => getStore().getProductPhoto(photo),
+  saveProductPhoto: async (photo) => getStore().saveProductPhoto(photo),
+  deleteProductPhoto: async (photo) => getStore().deleteProductPhoto(photo),
+  setStock: async (id, quantity) => getStore().setStock(id, quantity),
+  listOrders: async (options) => getStore().listOrders(options),
+  setOrderStatus: async (order) => getStore().setOrderStatus(order),
+  salesByPeriod: async (period) => getStore().salesByPeriod(period),
 };
 
 export default createApp({store: lazyStore, production: process.env.NODE_ENV === 'production'});

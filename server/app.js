@@ -2,8 +2,14 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { products } from '../shared/products.js';
-import { orderSchema, priceOrder } from './orders.js';
+import { deliverySlots, orderSchema, priceOrder } from './orders.js';
+import { createAdminRouter, mergeCatalog, normalizeWhatsappNumber, PHOTO_VIEWS } from './admin.js';
 import { DatabaseUnavailableError, StockError } from './store.js';
+
+const productIds = new Set(products.map(product => product.id));
+// Téléversement d'une photo produit : la seule écriture de l'API qui n'est pas du JSON.
+// Le chemin et le type sont vérifiés, et le contenu réel est validé dans server/admin.js.
+const photoUploadPath = /^\/admin\/products\/[a-zA-Z0-9_-]+\/photos\/(?:main|extra)$/;
 
 // Construit l'application Express de l'API. Utilisée par le serveur local/Node (server/index.js)
 // et par la fonction serverless Vercel (api/index.js). Les protections sont identiques dans les deux cas.
@@ -26,7 +32,10 @@ export function createApp({store, production = false, frontend} = {}) {
       const origin = req.get('origin');
       const allowedOrigin = process.env.PUBLIC_ORIGIN;
       if ((origin && (allowedOrigin ? origin !== allowedOrigin : new URL(origin).host !== req.get('host'))) || req.get('sec-fetch-site') === 'cross-site') return res.status(403).json({error: 'Origine non autorisée.'});
-      if (!req.is('application/json')) return res.status(415).json({error: 'Format JSON requis.'});
+      const imageUpload = req.method === 'PUT' && photoUploadPath.test(req.path) && /^image\/(?:jpeg|png|webp)$/.test(req.get('content-type') ?? '');
+      // Un DELETE sans corps est légitime (la cible est dans l'URL) : il n'y a rien à parser.
+      const bodylessDelete = req.method === 'DELETE' && !req.get('content-length') && !req.get('transfer-encoding');
+      if (!req.is('application/json') && !imageUpload && !bodylessDelete) return res.status(415).json({error: 'Format JSON requis.'});
     }
     next();
   });
@@ -37,10 +46,33 @@ export function createApp({store, production = false, frontend} = {}) {
     next(error instanceof DatabaseUnavailableError ? error : new DatabaseUnavailableError());
   });
 
+  // Informations publiques du site : numéro WhatsApp de la boutique et créneaux de livraison.
+  // Volontairement indépendantes de la base : même si PostgreSQL est indisponible, le lien wa.me
+  // et les créneaux du formulaire restent affichés.
+  app.get('/api/config', (_req, res) => res.json({
+    whatsappNumber: normalizeWhatsappNumber(process.env.WHATSAPP_NUMBER),
+    deliverySlots
+  }));
+  // Catalogue : produits de référence fusionnés avec les prix, promotions, stocks et photos
+  // enregistrés dans l'espace de gestion. Les produits masqués en sont retirés.
   app.get('/api/products', withDatabase, async (_req, res, next) => {
     try {
-      const inventory = await store.listStock();
-      res.json(products.map(p => ({...p, stock: inventory.get(p.id) ?? 0})));
+      const [settings, stock, photos] = await Promise.all([store.listProductSettings(), store.listStock(), store.listProductPhotos()]);
+      res.json(mergeCatalog({settings, stock, photos}));
+    } catch (error) { next(error); }
+  });
+  // Photo produit stockée dans PostgreSQL (bytea). Repli sur les fichiers statiques de public/ :
+  // `mergeCatalog` ne renvoie cette URL que lorsqu'une photo a réellement été téléversée.
+  app.get('/api/products/:id/photo/:view', withDatabase, async (req, res, next) => {
+    const {id, view} = req.params;
+    if (!productIds.has(id) || !PHOTO_VIEWS.includes(view)) return res.status(404).json({error: 'Photo introuvable.'});
+    try {
+      const photo = await store.getProductPhoto({id, view});
+      if (!photo) return res.status(404).json({error: 'Aucune photo enregistrée pour cette vue.'});
+      res.set('Content-Type', photo.mime);
+      // L'URL contient un paramètre de version : un cache court ne peut pas servir une photo remplacée.
+      res.set('Cache-Control', 'public, max-age=300');
+      res.send(photo.bytes);
     } catch (error) { next(error); }
   });
   // Diagnostic : répond toujours 200 ; `database` indique si PostgreSQL répond (voir README, section diagnostic).
@@ -52,11 +84,11 @@ export function createApp({store, production = false, frontend} = {}) {
     const result = orderSchema.safeParse(req.body);
     if (!result.success) return res.status(400).json({error: 'Vérifiez vos coordonnées et les produits de votre panier.'});
     try {
-      const {requestId, customer, items, payment} = result.data;
+      const {requestId, customer, items, payment, deliverySlot} = result.data;
       const old = await store.findOrderByRequest(requestId);
       if (old) return res.json({...old, duplicate: true});
       const pricing = priceOrder(items);
-      const order = await store.placeOrder({requestId, customer, payment, pricing});
+      const order = await store.placeOrder({requestId, customer, payment, deliverySlot, pricing});
       if (!order.created) return res.json({reference: order.reference, total: order.total, duplicate: true});
       res.status(201).json({reference: order.reference, total: order.total});
     } catch (error) {
@@ -64,6 +96,7 @@ export function createApp({store, production = false, frontend} = {}) {
       next(error);
     }
   });
+  app.use('/api/admin', createAdminRouter({store}));
   app.use('/api', (_req, res) => res.status(404).json({error: 'Endpoint introuvable.'}));
 
   if (frontend) frontend(app);

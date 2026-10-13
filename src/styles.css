@@ -3565,7 +3565,32 @@ header {
     height: 31px;
   }
 }
-/* 12. Reduced motion */
+/* 12. Créneau de livraison et commande WhatsApp */
+.slot-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 550;
+}
+.button.whatsapp {
+  background: #1f8a4c;
+  color: #fff;
+  margin-top: 14px;
+  text-decoration: none;
+}
+.button.whatsapp:hover {
+  background: #196e3d;
+  transform: translateY(-1px);
+}
+.whatsapp-note {
+  display: block;
+  margin-top: 9px;
+  font-size: 9px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+/* 13. Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
