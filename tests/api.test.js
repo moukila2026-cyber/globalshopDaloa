@@ -13,6 +13,7 @@ test('API persists idempotent orders, protects origins and rolls stock back',asy
   const post=(b,origin='http://localhost:3099')=>fetch(`${url}/orders`,{method:'POST',headers:{'Content-Type':'application/json',origin},body:JSON.stringify(b)});
   assert.equal((await post(body,'https://evil.example')).status,403);
   assert.equal((await post({...body,total:1})).status,400);
+  const badPhone=await post({...body,requestId:randomUUID(),customer:{...body.customer,phone:'123'}});assert.equal(badPhone.status,400);assert.match((await badPhone.json()).error,/Téléphone/);
   const before=await (await fetch(`${url}/products`)).json();
   const first=await post(body);assert.equal(first.status,201);const order=await first.json();assert.equal(order.total,14400);
   const duplicate=await (await post(body)).json();assert.equal(duplicate.reference,order.reference);assert.equal(duplicate.duplicate,true);
