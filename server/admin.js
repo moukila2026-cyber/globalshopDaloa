@@ -240,7 +240,7 @@ const productPatchSchema = z.object({
 
 const agentCreateSchema = z.object({
   name: z.string().trim().min(2).max(80),
-  roleLabel: z.string().trim().min(2).max(80).optional().default('Agent stock & catalogue')
+  roleLabel: z.string().trim().min(2).max(80).optional().default('Agent commandes & livraison')
 }).strict();
 
 export function createAdminRouter({store}) {
