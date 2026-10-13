@@ -278,7 +278,7 @@ test('only admin writes products/prices/stock/photos, agents read catalog, manag
   const {base, stop} = await startServer({ADMIN_PASSWORD: PASSWORD, WHATSAPP_NUMBER: WHATSAPP});
   try {
     const adminToken = await login(base);
-    const a1Res = await request(base, '/admin/agents', {token: adminToken, method: 'POST', body: {name: 'Kouamé Yao', roleLabel: 'Agent stock & catalogue'}});
+    const a1Res = await request(base, '/admin/agents', {token: adminToken, method: 'POST', body: {name: 'Kouamé Yao', roleLabel: 'Agent commandes & livraison'}});
     assert.equal(a1Res.status, 201);
     const {agent: agent1} = await a1Res.json();
     const a2Res = await request(base, '/admin/agents', {token: adminToken, method: 'POST', body: {name: 'Aminata Koné', roleLabel: 'Agent commandes & livraison'}});

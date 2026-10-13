@@ -148,3 +148,15 @@ test("hero slideshow rotates every 10s through in-stock product images and admin
   assert.match(adminApp, /disabled=\{!isAdmin\}/);
   assert.match(adminApp, /par \{order\.updatedBy\}|Dernière action par/);
 });
+
+test("agents dashboard text never claims agents can add products to stock or edit stock, prices or photos", async () => {
+  const adminApp = await read("../src/admin/AdminApp.jsx");
+  // Ancienne phrase trompeuse (les agents ne font que traiter les commandes) : ne doit jamais réapparaître.
+  assert.doesNotMatch(adminApp, /permettant d[’']entrer de nouveaux produits/);
+  // Ancien rôle par défaut trompeur : remplacé par « Agent commandes & livraison ».
+  assert.doesNotMatch(adminApp, /Agent stock & catalogue/);
+  assert.match(adminApp, /Agent commandes & livraison/);
+  // Phrase correcte présente dans le panneau Agents & Codes.
+  assert.match(adminApp, /Aucun agent ne peut ajouter de produits au stock/);
+  assert.match(adminApp, /traiter les commandes et de consulter le catalogue en lecture seule/);
+});

@@ -1235,7 +1235,7 @@ function ProductsPanel({token, session, notify, expired, onChanged}) {
 function AgentsPanel({token, notify, expired, onChanged}) {
   const [agents, setAgents] = useState([]);
   const [name, setName] = useState("");
-  const [roleLabel, setRoleLabel] = useState("Agent stock & catalogue");
+  const [roleLabel, setRoleLabel] = useState("Agent commandes & livraison");
   const [createdAgent, setCreatedAgent] = useState(null);
   const [copiedId, setCopiedId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -1318,7 +1318,9 @@ function AgentsPanel({token, notify, expired, onChanged}) {
           <p>
             Seul l’administrateur principal peut générer ou révoquer des codes d’accès. Chaque
             agent reçoit un code aléatoire strictement unique (<code>AGT-XXXX-XXXX</code>) lui
-            permettant d’entrer de nouveaux produits dans le stock et de traiter les commandes.
+            permettant de traiter les commandes et de consulter le catalogue en lecture seule.
+            Aucun agent ne peut ajouter de produits au stock ni modifier prix, stocks ou photos :
+            ces actions sont réservées à l’administrateur.
           </p>
         </div>
         <button className="admin-button ghost" onClick={load} disabled={loading}>
@@ -1341,7 +1343,6 @@ function AgentsPanel({token, notify, expired, onChanged}) {
         <label>
           Mission / Rôle
           <select value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)}>
-            <option value="Agent stock & catalogue">Agent stock & catalogue</option>
             <option value="Agent commandes & livraison">Agent commandes & livraison</option>
             <option value="Agent polyvalent Daloa">Agent polyvalent Daloa</option>
             <option value="Agent polyvalent Bouaké">Agent polyvalent Bouaké</option>

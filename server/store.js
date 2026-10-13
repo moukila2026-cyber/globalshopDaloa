@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS custom_products (
 CREATE TABLE IF NOT EXISTS admin_agents (
   id uuid PRIMARY KEY,
   name text NOT NULL,
-  role_label text NOT NULL DEFAULT 'Agent stock & catalogue',
+  role_label text NOT NULL DEFAULT 'Agent commandes & livraison',
   code text NOT NULL UNIQUE,
   active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -600,7 +600,7 @@ export function createStore(pool) {
       return rows.map(agentRow);
     },
 
-    async createAgent({name, roleLabel = 'Agent stock & catalogue', generateCode, actor = 'Admin'}) {
+    async createAgent({name, roleLabel = 'Agent commandes & livraison', generateCode, actor = 'Admin'}) {
       const {rows: existing} = await pool.query('SELECT code FROM admin_agents');
       const taken = new Set(existing.map(row => row.code));
       for (let attempt = 0; attempt < 15; attempt++) {
