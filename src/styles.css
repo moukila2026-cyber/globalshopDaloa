@@ -3590,6 +3590,137 @@ header {
   color: var(--muted);
 }
 
+/* 12b. Suivi de commande acheteur (« Suivre ma commande ») */
+.tracking-form {
+  padding-bottom: 18px;
+}
+.tracking-result {
+  margin: 0 30px 28px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--cream);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tracking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.tracking-header b {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 14px;
+  color: var(--green);
+}
+.tracking-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #f6e8e0;
+  color: #8d3f26;
+}
+.tracking-badge.status-en_preparation {
+  background: #f7f1dc;
+  color: #7c641a;
+}
+.tracking-badge.status-livree {
+  background: #e6f0e8;
+  color: #2f7d4f;
+}
+.tracking-badge.status-annulee {
+  background: #ececec;
+  color: #6b6b64;
+}
+.tracking-cancelled {
+  padding: 13px 15px;
+  border-radius: 10px;
+  background: #fbeee8;
+  color: #8d3f26;
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.tracking-cancelled b {
+  display: block;
+  margin-bottom: 3px;
+}
+.tracking-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tracking-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.tracking-step .step-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #cdd4c2;
+  background: #fffefa;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.tracking-step.done .step-dot,
+.tracking-step.current .step-dot {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.tracking-step.current b {
+  color: var(--green);
+}
+.tracking-step div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tracking-step small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.tracking-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  color: #5b6750;
+  padding: 12px;
+  background: #fffefa;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+}
+.tracking-meta > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tracking-lines h4 {
+  font-size: 11px;
+  margin: 0 0 10px;
+  color: var(--ink);
+}
+.tracking-refresh {
+  align-self: flex-start;
+}
+
 /* 13. Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   * {

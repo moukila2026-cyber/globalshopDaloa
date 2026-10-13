@@ -26,9 +26,41 @@ export function normalizeIvorianPhone(value) {
   return compact;
 }
 
+// Forme canonique à 10 chiffres pour comparer le téléphone saisi lors du suivi de commande
+// avec celui enregistré lors de l'achat, que l'indicatif +225 ait été saisi ou non.
+export function canonicalIvorianPhone(value) {
+  const normalized = normalizeIvorianPhone(value);
+  if (typeof normalized !== 'string') return '';
+  return normalized.replace(/^\+225/, '');
+}
+
 const phoneSchema = z.string()
   .transform(normalizeIvorianPhone)
   .pipe(z.string().regex(/^(?:\+225)?[0-9]{10}$/));
+
+const referenceSchema = z.string()
+  .trim()
+  .transform(value => value.toUpperCase())
+  .pipe(z.string().regex(/^GS-\d{4}-[A-F0-9]{8}$/));
+
+export const orderTrackingSchema = z.object({
+  reference: referenceSchema,
+  phone: phoneSchema
+}).strict();
+
+export function orderTrackingValidationError(issues = []) {
+  const messages = [];
+  const add = (message) => {
+    if (!messages.includes(message)) messages.push(message);
+  };
+  for (const issue of issues) {
+    const [field] = issue.path ?? [];
+    if (field === 'reference') add('Référence : saisissez une référence valide (ex. GS-2026-1A2B3C4D).');
+    else if (field === 'phone') add('Téléphone : saisissez un numéro ivoirien à 10 chiffres, avec 225 ou +225 facultatif (ex. 07 00 00 00 00).');
+    else add('Suivi impossible : vérifiez votre référence de commande et votre numéro de téléphone.');
+  }
+  return messages.length ? messages.join(' ') : 'Vérifiez votre référence de commande et votre numéro de téléphone.';
+}
 
 // Message d'erreur ciblé : le message générique précédent ne disait pas au client quel champ
 // corriger. On ne renvoie que le nom du champ et la règle, jamais la valeur saisie.
@@ -55,17 +87,18 @@ export function orderValidationError(issues = []) {
 
 export const orderSchema = z.object({
   customer: z.object({name: z.string().trim().min(2).max(100), phone: phoneSchema, city: z.enum(['Daloa', 'Bouaké']), address: z.string().trim().min(8).max(300), note: z.string().trim().max(500).default('')}),
-  items: z.array(z.object({id: z.string().max(40), quantity: z.number().int().min(1).max(10)})).min(1).max(20),
+  items: z.array(z.object({id: z.string().max(64), quantity: z.number().int().min(1).max(10)})).min(1).max(20),
   payment: z.literal('cash'),
   // Créneau souhaité : facultatif pour rester compatible avec un client plus ancien,
   // qui laisse alors l'équipe confirmer le créneau par téléphone.
   deliverySlot: z.enum(deliverySlots).nullable().optional().transform(value => value ?? null),
   requestId: z.string().uuid()
 }).strict();
-export function priceOrder(items) {
+
+export function priceOrder(items, catalog = products) {
   if (new Set(items.map(i => i.id)).size !== items.length) throw new Error('Un produit ne peut apparaître qu’une fois.');
   const lines = items.map(item => {
-    const product = products.find(p => p.id === item.id);
+    const product = catalog.find(p => p.id === item.id && p.active !== false);
     if (!product) throw new Error('Produit introuvable.');
     return {id: product.id, name: product.name, quantity: item.quantity, unitPrice: product.price};
   });

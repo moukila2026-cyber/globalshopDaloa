@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {startTestDatabase} from './helpers/postgres.js';
+import {generateAgentCode} from '../server/admin.js';
 
 const PASSWORD = 'mot-de-passe-admin-test';
 const WHATSAPP = '+225 07 00 00 00 00';
@@ -230,6 +231,181 @@ test('orders keep their delivery slot, move through three columns and cancel res
     // Les commandes annulées restent visibles dans la colonne « Terminées ».
     assert.equal((await request(base, '/admin/orders?status=annulee', {token})).status, 200);
     assert.equal((await (await request(base, '/admin/orders?status=annulee', {token})).json()).orders.length, 1);
+
+    // Suivi de commande côté acheteur (« Suivre ma commande ») par référence et téléphone.
+    const trackOk = await request(base, '/orders/track', {
+      method: 'POST',
+      body: {reference: reference.toLowerCase(), phone: '+225 07 00 00 00 00'}
+    });
+    assert.equal(trackOk.status, 200);
+    const {order: tracked} = await trackOk.json();
+    assert.equal(tracked.reference, reference);
+    assert.equal(tracked.status, 'livree');
+    assert.equal(tracked.statusLabel, 'Livrée');
+    assert.equal(tracked.total, total);
+
+    const trackGet = await fetch(`${base}/api/orders/track?reference=${encodeURIComponent(reference)}&phone=0700000000`);
+    assert.equal(trackGet.status, 200);
+    assert.equal((await trackGet.json()).order.reference, reference);
+
+    // Téléphone ne correspondant pas à la commande : 404 sans fuite d'information.
+    assert.equal((await request(base, '/orders/track', {
+      method: 'POST',
+      body: {reference, phone: '0799999999'}
+    })).status, 404);
+    assert.equal((await request(base, '/orders/track', {
+      method: 'POST',
+      body: {reference: 'GS-2026-00000000', phone: '0700000000'}
+    })).status, 404);
+    assert.equal((await request(base, '/orders/track', {
+      method: 'POST',
+      body: {reference: 'invalide', phone: '123'}
+    })).status, 400);
+  } finally {
+    await stop();
+  }
+});
+
+test('admin generates unique agent codes, both admin and agents add new products to stock, and realtime feed tracks activity', async () => {
+  // Vérifie le générateur de codes aléatoires : format AGT-XXXX-XXXX et unicité stricte.
+  const seenCodes = new Set();
+  for (let i = 0; i < 200; i++) {
+    const code = generateAgentCode(seenCodes);
+    assert.match(code, /^AGT-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/);
+    assert.equal(seenCodes.has(code), false);
+    seenCodes.add(code);
+  }
+
+  const {base, stop} = await startServer({ADMIN_PASSWORD: PASSWORD, WHATSAPP_NUMBER: WHATSAPP});
+  try {
+    const adminToken = await login(base);
+
+    // Création de deux agents par l'administrateur : deux agents n'ont jamais le même code.
+    const a1Res = await request(base, '/admin/agents', {
+      token: adminToken,
+      method: 'POST',
+      body: {name: 'Kouamé Yao', roleLabel: 'Agent stock & catalogue'}
+    });
+    assert.equal(a1Res.status, 201);
+    const {agent: agent1} = await a1Res.json();
+
+    const a2Res = await request(base, '/admin/agents', {
+      token: adminToken,
+      method: 'POST',
+      body: {name: 'Aminata Koné', roleLabel: 'Agent commandes & livraison'}
+    });
+    assert.equal(a2Res.status, 201);
+    const {agent: agent2} = await a2Res.json();
+
+    assert.notEqual(agent1.code, agent2.code);
+    assert.match(agent1.code, /^AGT-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    assert.match(agent2.code, /^AGT-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+
+    // Connexion de l'agent 1 avec son code personnel unique.
+    const agentLogin = await request(base, '/admin/session', {
+      method: 'POST',
+      body: {agentCode: agent1.code}
+    });
+    assert.equal(agentLogin.status, 200);
+    const agentSession = await agentLogin.json();
+    assert.equal(agentSession.role, 'agent');
+    assert.equal(agentSession.actor, 'Kouamé Yao');
+    const agentToken = agentSession.token;
+
+    // Seul l'admin principal peut générer ou lister les codes agents (403 pour un agent).
+    assert.equal((await request(base, '/admin/agents', {token: agentToken})).status, 403);
+    assert.equal((await request(base, '/admin/agents', {token: agentToken, method: 'POST', body: {name: 'Intrus'}})).status, 403);
+
+    // L'agent et l'admin peuvent tous deux ajouter de nouveaux produits dans le stock avec toutes leurs infos.
+    const createByAgent = await request(base, '/admin/products', {
+      token: agentToken,
+      method: 'POST',
+      body: {
+        name: 'Parfum Oud Royal',
+        category: 'Beauté',
+        price: 15000,
+        oldPrice: 20000,
+        stock: 12,
+        color: '50 ml',
+        badge: 'NOUVEAU',
+        description: 'Fragrance boisée intense sélectionnée pour Global Shop Daloa.',
+        specs: ['Flacon 50 ml', 'Tenue longue durée'],
+        active: true
+      }
+    });
+    assert.equal(createByAgent.status, 201);
+    const {product: oud} = await createByAgent.json();
+    assert.equal(oud.id, 'parfum-oud-royal');
+    assert.equal(oud.price, 15000);
+    assert.equal(oud.oldPrice, 20000);
+    assert.equal(oud.badge, '−25 %');
+    assert.equal(oud.stock, 12);
+    assert.equal(oud.createdBy, 'Kouamé Yao');
+
+    // Téléversement d'une photo sur le nouveau produit créé.
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]), Buffer.from('JFIF-oud'), Buffer.from([0xff, 0xd9])]);
+    const photoRes = await request(base, `/admin/products/${oud.id}/photos/main`, {
+      token: agentToken,
+      method: 'PUT',
+      body: jpeg,
+      contentType: 'image/jpeg'
+    });
+    assert.equal(photoRes.status, 200);
+    const {url: oudPhotoUrl} = await photoRes.json();
+    assert.equal((await fetch(`${base}${oudPhotoUrl}`)).status, 200);
+
+    // Le nouveau produit est visible dans le catalogue public et peut être commandé par un client.
+    const publicOud = await catalog(base, oud.id);
+    assert.ok(publicOud);
+    assert.equal(publicOud.price, 15000);
+    assert.equal(publicOud.stock, 12);
+    assert.equal(publicOud.image, oudPhotoUrl);
+
+    // Événement visiteur en direct sur la boutique.
+    const visitRes = await request(base, '/events', {
+      method: 'POST',
+      body: {
+        sessionId: 'session-test-123456',
+        type: 'cart_add',
+        page: '/',
+        city: 'Daloa',
+        cartCount: 2,
+        title: 'Ajout au panier : Parfum Oud Royal',
+        detail: '2 × Parfum Oud Royal'
+      }
+    });
+    assert.equal(visitRes.status, 202);
+
+    // Commande d'un nouveau produit ajouté au stock : le stock décrémente.
+    const orderRes = await request(base, '/orders', {
+      method: 'POST',
+      body: {
+        customer: {name: 'Awa Traoré', phone: '0708091011', city: 'Daloa', address: 'Quartier Lobia, près du carrefour'},
+        items: [{id: oud.id, quantity: 2}],
+        payment: 'cash',
+        deliverySlot: '08:00 – 12:00',
+        requestId: randomUUID()
+      }
+    });
+    assert.equal(orderRes.status, 201);
+    assert.equal((await catalog(base, oud.id)).stock, 10);
+
+    // Zone de suivi en temps réel : visiteurs en ligne, commandes, stock et flux d'événements.
+    const realtimeRes = await request(base, '/admin/realtime', {token: adminToken});
+    assert.equal(realtimeRes.status, 200);
+    const realtime = await realtimeRes.json();
+    assert.equal(realtime.visitors.online, 1);
+    assert.equal(realtime.visitors.activeCarts, 1);
+    assert.equal(realtime.orders.pending, 1);
+    assert.equal(realtime.stock.customProductsCount, 1);
+    assert.equal(realtime.agents.activeCount, 2);
+    assert.ok(realtime.events.some(e => e.type === 'product_created' && e.actor === 'Kouamé Yao'));
+    assert.ok(realtime.events.some(e => e.type === 'order_created'));
+    assert.ok(realtime.events.some(e => e.type === 'cart_add'));
+
+    // Révocation du code de l'agent 1 par l'admin : son jeton est immédiatement invalidé.
+    assert.equal((await request(base, `/admin/agents/${agent1.id}`, {token: adminToken, method: 'DELETE'})).status, 200);
+    assert.equal((await request(base, '/admin/products', {token: agentToken})).status, 401);
   } finally {
     await stop();
   }

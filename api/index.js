@@ -20,8 +20,13 @@ const lazyStore = {
   ping: async () => getStore().ping(),
   listStock: async () => getStore().listStock(),
   findOrderByRequest: async (requestId) => getStore().findOrderByRequest(requestId),
+  trackOrder: async (params) => getStore().trackOrder(params),
   placeOrder: async (order) => getStore().placeOrder(order),
   // Espace de gestion (/admin) : mêmes méthodes que le serveur Node, résolues à l'appel.
+  listCustomProducts: async () => getStore().listCustomProducts(),
+  createCustomProduct: async (product) => getStore().createCustomProduct(product),
+  updateCustomProduct: async (product) => getStore().updateCustomProduct(product),
+  deleteCustomProduct: async (id) => getStore().deleteCustomProduct(id),
   listProductSettings: async () => getStore().listProductSettings(),
   saveProductSettings: async (settings) => getStore().saveProductSettings(settings),
   listProductPhotos: async () => getStore().listProductPhotos(),
@@ -32,6 +37,14 @@ const lazyStore = {
   listOrders: async (options) => getStore().listOrders(options),
   setOrderStatus: async (order) => getStore().setOrderStatus(order),
   salesByPeriod: async (period) => getStore().salesByPeriod(period),
+  listAgents: async () => getStore().listAgents(),
+  createAgent: async (agent) => getStore().createAgent(agent),
+  findAgentByCode: async (code) => getStore().findAgentByCode(code),
+  getAgentById: async (id) => getStore().getAgentById(id),
+  revokeAgent: async (id, actor) => getStore().revokeAgent(id, actor),
+  recordEvent: async (event) => getStore().recordEvent(event),
+  touchVisitor: async (visitor) => getStore().touchVisitor(visitor),
+  getRealtimeOverview: async (options) => getStore().getRealtimeOverview(options),
 };
 
 export default createApp({store: lazyStore, production: process.env.NODE_ENV === 'production'});
