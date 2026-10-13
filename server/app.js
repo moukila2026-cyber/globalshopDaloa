@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { products } from '../shared/products.js';
-import { deliverySlots, orderSchema, priceOrder } from './orders.js';
+import { deliverySlots, orderSchema, orderValidationError, priceOrder } from './orders.js';
 import { createAdminRouter, mergeCatalog, normalizeWhatsappNumber, PHOTO_VIEWS } from './admin.js';
 import { DatabaseUnavailableError, StockError } from './store.js';
 
@@ -82,7 +82,7 @@ export function createApp({store, production = false, frontend} = {}) {
   });
   app.post('/api/orders', rateLimit({windowMs: 15 * 60000, limit: 15, standardHeaders: 'draft-8', legacyHeaders: false, message: {error: 'Trop de tentatives. Réessayez dans quelques minutes.'}}), withDatabase, async (req, res, next) => {
     const result = orderSchema.safeParse(req.body);
-    if (!result.success) return res.status(400).json({error: 'Vérifiez vos coordonnées et les produits de votre panier.'});
+    if (!result.success) return res.status(400).json({error: orderValidationError(result.error.issues)});
     try {
       const {requestId, customer, items, payment, deliverySlot} = result.data;
       const old = await store.findOrderByRequest(requestId);

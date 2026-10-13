@@ -1696,11 +1696,11 @@ function App() {
                                 placeholder="Ex. 07 00 00 00 00"
                                 onBlur={(e) =>
                                   e.currentTarget.setCustomValidity(
-                                    /^(\+225)?[0-9]{10}$/.test(
+                                    /^(?:\+225|00225|225)?[0-9]{10}$/.test(
                                       form.phone.replace(/[\s.-]/g, ""),
                                     )
                                       ? ""
-                                      : "Saisissez 10 chiffres, avec +225 facultatif.",
+                                      : "Saisissez un numéro ivoirien à 10 chiffres, avec 225 ou +225 facultatif.",
                                   )
                                 }
                                 onInput={(e) =>
