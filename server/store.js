@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'nouvelle';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_slot text;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_by text;
 CREATE TABLE IF NOT EXISTS product_settings (
   id text PRIMARY KEY,
   price integer NOT NULL CHECK (price >= 0),
@@ -140,7 +141,7 @@ export async function initializeDatabase(pool) {
 
 // Colonnes de commande projetées pour l'espace de gestion : la date est convertie en heure d'Abidjan
 // côté SQL, ainsi l'affichage reste juste quel que soit le fuseau de la base ou du serveur.
-const ORDER_COLUMNS = `id, reference, status, delivery_slot, total, payload, created_at,
+const ORDER_COLUMNS = `id, reference, status, delivery_slot, total, payload, created_at, updated_by,
   to_char(created_at AT TIME ZONE '${ABIDJAN_TIMEZONE}', 'YYYY-MM-DD"T"HH24:MI') AS created_at_abidjan`;
 
 const orderRow = row => ({
@@ -151,6 +152,7 @@ const orderRow = row => ({
   total: row.total,
   createdAt: row.created_at.toISOString(),
   createdAtAbidjan: row.created_at_abidjan,
+  updatedBy: row.updated_by ?? null,
   customer: row.payload?.customer ?? null,
   lines: row.payload?.lines ?? []
 });
@@ -545,7 +547,7 @@ export function createStore(pool) {
             await client.query('UPDATE stock SET quantity = quantity + $2 WHERE id = $1', [line.id, line.quantity]);
           }
         }
-        const updated = await client.query(`UPDATE orders SET status = $2 WHERE id = $1 RETURNING ${ORDER_COLUMNS}`, [id, status]);
+        const updated = await client.query(`UPDATE orders SET status = $2, updated_by = $3 WHERE id = $1 RETURNING ${ORDER_COLUMNS}`, [id, status, actor]);
         await client.query(
           `INSERT INTO store_events (type, category, actor, title, detail, meta)
            VALUES ('order_status', 'commandes', $1, $2, $3, $4)`,

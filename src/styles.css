@@ -3729,3 +3729,39 @@ header {
     scroll-behavior: auto !important;
   }
 }
+
+/* Diaporama hero vivant : fondu entre les images des produits en stock, rotation toutes les 10 s (JS). */
+.hero-visual.hero-slideshow > img.hero-slide {
+  opacity: 0;
+  transform: scale(1.04);
+  transition: opacity 1.2s ease, transform 6s ease;
+  pointer-events: none;
+}
+.hero-visual.hero-slideshow > img.hero-slide.active {
+  opacity: 1;
+  transform: scale(1);
+  animation: hero-kenburns 10s ease both;
+  z-index: 0;
+}
+@keyframes hero-kenburns {
+  from { transform: scale(1); }
+  to { transform: scale(1.06); }
+}
+.hero-dots {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+.hero-dot {
+  width: 9px; height: 9px; border-radius: 999px; border: 1px solid #fff;
+  background: #ffffff66; cursor: pointer; padding: 0; transition: all .3s ease;
+}
+.hero-dot.active { width: 26px; background: var(--orange, #b77551); }
+.order-updated-by { color: var(--green, #2b4e40); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-visual.hero-slideshow > img.hero-slide { transition: none; animation: none !important; }
+}
