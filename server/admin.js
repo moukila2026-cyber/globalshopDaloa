@@ -6,7 +6,7 @@ import { createHash, createHmac, randomInt, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod';
 import { products } from '../shared/products.js';
 import { deliverySlots, orderStatuses } from './orders.js';
-import { ABIDJAN_TIMEZONE } from './store.js';
+import { ABIDJAN_TIMEZONE, OrderStateError } from './store.js';
 
 export const PHOTO_VIEWS = ['main', 'extra'];
 // Deux mégaoctets : suffisant pour une photo produit recompressée, assez bas pour rester sain en serverless.
@@ -379,6 +379,7 @@ export function createAdminRouter({store}) {
       if (!order) return res.status(404).json({error: 'Commande introuvable.'});
       res.json({order});
     } catch (error) {
+      if (error instanceof OrderStateError) return res.status(409).json({error: error.message});
       // Identifiant qui n'est pas un UUID : la requête SQL échoue, on répond 404 plutôt qu'une 500.
       if (error.code === '22P02') return res.status(404).json({error: 'Commande introuvable.'});
       next(error);

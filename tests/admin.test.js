@@ -195,6 +195,14 @@ test('orders keep their delivery slot, move through three columns and cancel res
     assert.equal(prepared.status, 200);
     assert.equal((await prepared.json()).order.status, 'en_preparation');
     assert.equal((await request(base, `/admin/orders/${order.id}`, {token, method: 'PATCH', body: {status: 'livree'}})).status, 200);
+    // Une commande livrée ne peut plus être annulée : refus 409, statut et stock inchangés.
+    const stockBeforeRefusal = (await catalog(base, 'casque')).stock;
+    const refused = await request(base, `/admin/orders/${order.id}`, {token, method: 'PATCH', body: {status: 'annulee'}});
+    assert.equal(refused.status, 409);
+    assert.match((await refused.json()).error, /livrée/);
+    assert.equal((await catalog(base, 'casque')).stock, stockBeforeRefusal);
+    const delivered = await (await request(base, '/admin/orders?status=livree', {token})).json();
+    assert.equal(delivered.orders.find(item => item.id === order.id)?.status, 'livree');
     // Statuts et identifiants invalides restent des erreurs propres.
     assert.equal((await request(base, `/admin/orders/${order.id}`, {token, method: 'PATCH', body: {status: 'expediee'}})).status, 400);
     assert.equal((await request(base, '/admin/orders/11111111-2222-4333-8444-555555555555', {token, method: 'PATCH', body: {status: 'livree'}})).status, 404);

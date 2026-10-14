@@ -2261,12 +2261,6 @@ const information = {
       "Les avis sont-ils vérifiés ? Les avis affichés dans cette version sont des exemples illustratifs, pas des avis d’acheteurs vérifiés.",
     ],
   },
-  social: {
-    title: "Retrouvons-nous bientôt.",
-    paragraphs: [
-      "Les comptes officiels Facebook et Instagram de Global Shop Daloa seront ajoutés à l’ouverture. En attendant, explorez nos collections directement ici.",
-    ],
-  },
   legal: {
     title: "Mentions légales",
     paragraphs: [

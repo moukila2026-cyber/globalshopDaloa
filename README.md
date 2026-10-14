@@ -15,7 +15,7 @@ npm run dev
 Accès : http://localhost:3000. Serveur lié à `0.0.0.0`, API et frontend sur la même origine. Au démarrage, le schéma est créé s'il n'existe pas et le stock initial est inséré (sans écraser les stocks existants). Pour un PostgreSQL local sans TLS : `postgres://postgres:postgres@localhost:5432/gs` (TLS désactivé uniquement pour `localhost`).
 
 ```sh
-npm test          # 19 tests (API, espace de gestion, import SQLite, interface) ; PostgreSQL éphémère automatique (ou TEST_DATABASE_URL)
+npm test          # 24 tests (API, espace de gestion, import SQLite, interface) ; PostgreSQL éphémère automatique (ou TEST_DATABASE_URL)
 npm run build     # génère dist/
 npm start         # production locale, sert dist/ (DATABASE_URL requis)
 ```
@@ -64,7 +64,12 @@ Le frontend est compilé dans `dist/` et servi en statique. Sur Vercel, les rout
 
 ## Espace de gestion `/admin`
 
-Ouvrir `https://<domaine>/admin`. Aucune donnée client n'est accessible sans mot de passe.
+Ouvrir `https://<domaine>/admin`. Aucune donnée client n'est accessible sans mot de passe ni code agent.
+
+### Rôles : administrateur et agents
+
+- **Administrateur principal** : connexion avec `ADMIN_PASSWORD`. Accès complet : commandes, catalogue (produits, prix, stocks, photos, nouveaux produits), ventes par période, et génération ou révocation des codes agents (onglet « Agents & Codes »).
+- **Agents** : connexion avec un code personnel `AGT-XXXX-XXXX`, généré par l'administrateur et révocable à tout moment. Ils gèrent les commandes (confirmation, préparation, livraison, annulation) et consultent le catalogue en lecture seule : ils ne peuvent ni modifier les stocks, les prix ni les photos, ni créer de produit. Un code révoqué est refusé dès la requête suivante, même si une session est ouverte.
 
 ### Accès et variables
 
@@ -79,6 +84,8 @@ Connexion : le mot de passe est envoyé en POST sur `/api/admin/session` (limit�
 ### Commandes, en trois colonnes
 
 **Nouvelles** (à confirmer par téléphone) → **En préparation** → **Terminées** (livrées ou annulées). Chaque carte affiche la référence, la date et l'heure d'Abidjan, le client (téléphone cliquable), l'adresse, le créneau de livraison, le détail des articles et le montant à encaisser. Actions : avancer le statut, annuler (**le stock réservé est alors restitué dans la même transaction**), ouvrir WhatsApp ou appeler, copier le récapitulatif. La liste se rafraîchit automatiquement toutes les minutes.
+
+**Annulation** : le bouton « Annuler (stock restitué) » est proposé dans les colonnes « Nouvelles » et « En préparation ». Il n'est pas affiché pour une commande **livrée** (colonne « Terminées »), et le serveur refuse l'annulation d'une commande livrée (réponse 409) : la marchandise a été remise au client, son stock n'est donc pas restitué. L'annulation d'une commande en attente ou en préparation restitue le stock réservé, dans la même transaction.
 
 ### Produits, promotions et photos
 
@@ -100,8 +107,8 @@ La migration est **strictement additive et idempotente**, exécutée au premier 
 
 ### Limites connues
 
-- **Mot de passe unique, sans rôles ni journal d'audit.** Suffisant pour une équipe restreinte ; à faire évoluer (comptes individuels, rôles, journalisation) avant de déléguer la gestion à plusieurs personnes.
-- **Le test visuel sur téléphone reste à faire** : l'espace de gestion a été vérifié par les tests automatisés et sur ordinateur, mais son affichage sur un vrai écran de téléphone (colonnes empilées, téléversement d'une photo depuis l'appareil photo) doit encore être contrôlé.
+- **L'administrateur principal est un compte unique** (un seul `ADMIN_PASSWORD` partagé). Les agents ont, eux, des codes individuels et révocables. Le journal des événements enregistre l'auteur de chaque action, mais il n'existe pas encore de journal d'audit formel ni de comptes administrateurs nominatifs : à ajouter avant de confier l'administration à plusieurs personnes.
+- **Le test sur un vrai téléphone reste à faire** : l'espace de gestion a été vérifié par les tests automatisés, sur ordinateur, et sur un écran simulé de 390 px (navigateur headless : pas de débordement horizontal, colonnes empilées, photos produit lisibles). Restent à contrôler sur un appareil réel : le téléversement d'une photo depuis l'appareil photo, et la taille des boutons d'onglets (38 px de haut, sous les 44 px recommandés) et des libellés de 10 à 11 px.
 - Un mot de passe trop court reste la principale faiblesse : la limitation de débit freine les tentatives mais ne remplace pas un mot de passe long.
 - La limitation de débit est en mémoire, donc par instance serverless (comme pour le reste de l'API).
 
@@ -182,7 +189,7 @@ Cette version est une démonstration fonctionnelle, pas une boutique déjà opé
 2. Remplacer le monogramme proposé (`public/images/logo.svg`) par le logo officiel, ou ajuster `BRAND_LOGO_PATH` dans `src/brand.js` pour un PNG haute résolution. Contrôler le rendu dans l’en-tête, le pied de page, l’écran de confirmation de commande et le favicon.
 3. Remplacer les avis de démonstration par des avis authentiques ; aucune mention « achat vérifié » n'est utilisée.
 4. Renseigner identité légale, contacts, CGV, délais/retours, responsable de traitement et durée de conservation dans les contenus d'information de `src/main.jsx`.
-5. Organiser le traitement des commandes : un espace de gestion authentifié existe désormais sur `/admin` (commandes, produits, photos, ventes). Avant de le déléguer à plusieurs personnes, ajouter des comptes individuels, des rôles et un journal d'audit, et définir un `ADMIN_PASSWORD` long. Aucun SMS ni e-mail n'est envoyé automatiquement : la confirmation et le suivi restent manuels (téléphone ou lien wa.me).
+5. Organiser le traitement des commandes : un espace de gestion authentifié existe désormais sur `/admin` (commandes, produits, photos, ventes). Les rôles agents (codes individuels et révocables) existent déjà. Avant de confier l'administration à plusieurs personnes, ajouter des comptes administrateurs nominatifs et un journal d'audit, et définir un `ADMIN_PASSWORD` long. Aucun SMS ni e-mail n'est envoyé automatiquement : la confirmation et le suivi restent manuels (téléphone ou lien wa.me).
 6. Connecter un prestataire agréé pour Wave/Orange/MTN si souhaité : les paiements Mobile Money ne sont pas simulés. Prévoir webhooks signés et vérification serveur.
 7. Configurer sauvegardes Neon, supervision (logs Vercel, alertes sur `/api/health`) et processus de confirmation/livraison. Les stocks sont réservés immédiatement ; une gestion d'annulation/restitution doit être ajoutée pour l'exploitation.
 

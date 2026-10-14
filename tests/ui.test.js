@@ -180,3 +180,17 @@ test("agents dashboard text never claims agents can add products to stock or edi
   assert.match(adminApp, /Aucun agent ne peut ajouter de produits au stock/);
   assert.match(adminApp, /traiter les commandes et de consulter le catalogue en lecture seule/);
 });
+
+test("admin cancel button is hidden for delivered orders and the social modal is gone", async () => {
+  const adminApp = await read("../src/admin/AdminApp.jsx");
+  const app = await read("../src/main.jsx");
+  // Une commande livrée ne propose plus « Annuler (stock restitué) ».
+  assert.match(adminApp, /order\.status !== "annulee" && order\.status !== "livree"/);
+  // L'annulation est proposée pour « Nouvelles » et « En préparation », pas pour « Terminées ».
+  assert.match(adminApp, /id: "nouvelle"[\s\S]*?cancel: true,\n  \},/);
+  assert.match(adminApp, /id: "en_preparation"[\s\S]*?cancel: true,\n  \},/);
+  assert.doesNotMatch(adminApp, /id: "terminees"[\s\S]*?cancel: true/);
+  // La modale « social » (Facebook/Instagram « à venir ») n'existe plus.
+  assert.doesNotMatch(app, /social: \{/);
+  assert.doesNotMatch(app, /seront ajoutés à l’ouverture/);
+});
