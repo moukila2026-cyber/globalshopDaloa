@@ -108,7 +108,7 @@ La migration est **strictement additive et idempotente**, exécutée au premier 
 ### Limites connues
 
 - **L'administrateur principal est un compte unique** (un seul `ADMIN_PASSWORD` partagé). Les agents ont, eux, des codes individuels et révocables. Le journal des événements enregistre l'auteur de chaque action, mais il n'existe pas encore de journal d'audit formel ni de comptes administrateurs nominatifs : à ajouter avant de confier l'administration à plusieurs personnes.
-- **Le test visuel sur téléphone reste à faire** : l'espace de gestion a été vérifié par les tests automatisés et sur ordinateur, mais son affichage sur un vrai écran de téléphone (colonnes empilées, téléversement d'une photo depuis l'appareil photo) doit encore être contrôlé.
+- **Le test sur un vrai téléphone reste à faire** : l'espace de gestion a été vérifié par les tests automatisés, sur ordinateur, et sur un écran simulé de 390 px (navigateur headless : pas de débordement horizontal, colonnes empilées, photos produit lisibles). Restent à contrôler sur un appareil réel : le téléversement d'une photo depuis l'appareil photo, et la taille des boutons d'onglets (38 px de haut, sous les 44 px recommandés) et des libellés de 10 à 11 px.
 - Un mot de passe trop court reste la principale faiblesse : la limitation de débit freine les tentatives mais ne remplace pas un mot de passe long.
 - La limitation de débit est en mémoire, donc par instance serverless (comme pour le reste de l'API).
 
