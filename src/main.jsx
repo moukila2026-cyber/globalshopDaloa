@@ -23,7 +23,6 @@ import {
   Leaf,
   CreditCard,
   CheckCircle2,
-  Instagram,
   Facebook,
   Sparkles,
   MessageCircle,
@@ -64,6 +63,14 @@ const imageFallback = "/images/products/produit-indisponible.svg";
 // Créneaux de livraison en heure d'Abidjan. Même liste que l'API (/api/config) ; celle-ci sert de
 // repli si la configuration est injoignable, pour que le formulaire reste utilisable.
 const fallbackDeliverySlots = ["08:00 – 12:00", "12:00 – 16:00", "16:00 – 19:00"];
+// Publication Facebook officielle reliée au pied de page (ouverte dans un nouvel onglet).
+const FACEBOOK_POST_URL =
+  "https://web.facebook.com/permalink.php?story_fbid=122136094935197445&id=61585923373415";
+const SUPPORT_WHATSAPP_MESSAGE =
+  "Bonjour Global Shop Daloa, j'ai besoin d'une assistance. Pouvez-vous m'aider ?";
+// Lien d'assistance WhatsApp vers le numéro de la boutique, message pré-rempli.
+const supportWhatsappLink = (number) =>
+  `https://wa.me/${number}?text=${encodeURIComponent(SUPPORT_WHATSAPP_MESSAGE)}`;
 function Photo({ src, alt, ...props }) {
   return (
     <img
@@ -1251,18 +1258,35 @@ function App() {
               Tout près de chez vous.
             </p>
             <div className="socials">
-              <button
-                aria-label="Informations Facebook"
-                onClick={() => setInfo("social")}
+              <a
+                href={FACEBOOK_POST_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Voir la publication Facebook de Global Shop Daloa"
+                title="Publication Facebook"
               >
                 <Facebook size={17} />
-              </button>
-              <button
-                aria-label="Informations Instagram"
-                onClick={() => setInfo("social")}
-              >
-                <Instagram size={17} />
-              </button>
+              </a>
+              {shop.whatsappNumber ? (
+                <a
+                  href={supportWhatsappLink(shop.whatsappNumber)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Assistance par WhatsApp"
+                  title="Assistance WhatsApp"
+                >
+                  <MessageCircle size={17} />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  aria-label="Assistance WhatsApp indisponible : numéro non configuré"
+                  title="Assistance WhatsApp indisponible"
+                >
+                  <MessageCircle size={17} />
+                </button>
+              )}
             </div>
           </div>
           <div className="footer-column">

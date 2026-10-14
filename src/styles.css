@@ -1122,12 +1122,22 @@ footer {
   gap: 10px;
   margin-top: 17px;
 }
+.socials a,
 .socials button {
   padding: 6px;
   border: 1px solid #dedfd3;
   display: flex;
   border-radius: 50%;
   color: #69745c;
+}
+.socials a:hover,
+.socials a:focus-visible {
+  color: #1f8a4c;
+  border-color: #1f8a4c;
+}
+.socials button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .footer-main h4 {
   font-size: 11px;
