@@ -42,26 +42,28 @@ const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
 const DEFAULT_CATEGORIES = ["Mode", "High-tech", "Maison", "Beauté"];
 
 // Colonnes du suivi des commandes : trois colonnes, comme au comptoir.
-// Les commandes livrées et annulées partagent la colonne « Terminées » (l'annulation est un cas de clôture).
+// Les commandes livrées et annulées partagent la colonne « Terminées ».
+// L'annulation (stock restitué) est proposée avant livraison ; une commande livrée ne peut plus être annulée.
 export const orderColumns = [
   {
     id: "nouvelle",
     title: "Nouvelles",
     hint: "À confirmer par téléphone",
     advance: {status: "en_preparation", label: "Passer en préparation"},
+    cancel: true,
   },
   {
     id: "en_preparation",
     title: "En préparation",
     hint: "Prêtes à être livrées",
     advance: {status: "livree", label: "Marquer comme livrée"},
+    cancel: true,
   },
   {
     id: "terminees",
     title: "Terminées",
     hint: "Livrées ou annulées",
     statuses: ["livree", "annulee"],
-    cancel: true,
   },
 ];
 
