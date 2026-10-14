@@ -31,6 +31,7 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import BrandLogo from "../BrandLogo.jsx";
 import "./admin.css";
 
 const TOKEN_KEY = "gs-admin-token";
@@ -1659,7 +1660,7 @@ export default function AdminApp() {
     <div className="admin-shell">
       <header className="admin-header">
         <div className="admin-brand">
-          <span className="admin-mark">GS</span>
+          <BrandLogo className="admin-logo" fallback={<span className="admin-mark">GS</span>} />
           <span>
             <b>Espace de gestion</b>
             <small>Global Shop Daloa · heures d’Abidjan</small>

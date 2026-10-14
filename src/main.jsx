@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { products as referenceProducts, shippingFee } from "../shared/products.js";
 import { BRAND_LOGO_ALT, BRAND_LOGO_PATH } from "./brand.js";
+import BrandLogo from "./BrandLogo.jsx";
 import "./styles.css";
 const money = (n) => new Intl.NumberFormat("fr-CI").format(n) + " FCFA";
 // Stock inconnu (catalogue de secours, stock === null) : le panier reste disponible, limité à 10 par ligne.
@@ -76,24 +77,6 @@ function Photo({ src, alt, ...props }) {
         image.src = imageFallback;
       }}
       {...props}
-    />
-  );
-}
-function BrandLogo() {
-  const [unavailable, setUnavailable] = useState(false);
-  if (unavailable) {
-    return (
-      <span className="brand-symbol" aria-hidden="true">
-        g<span>•</span>
-      </span>
-    );
-  }
-  return (
-    <img
-      className="brand-logo"
-      src={BRAND_LOGO_PATH}
-      alt={BRAND_LOGO_ALT}
-      onError={() => setUnavailable(true)}
     />
   );
 }

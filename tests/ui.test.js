@@ -41,22 +41,42 @@ test("lightbox reuses the dialog, traps and restores focus, locks scrolling and 
   assert.match(app, /aria-live="polite"/);
 });
 
-test("brand logo is configurable and shown on header, footer and order confirmation", async () => {
+test("brand logo is configurable, shared by storefront and admin, with fallbacks", async () => {
   const brand = await read("../src/brand.js");
   const app = await read("../src/main.jsx");
+  const logoComponent = await read("../src/BrandLogo.jsx");
+  const adminApp = await read("../src/admin/AdminApp.jsx");
+  const adminCss = await read("../src/admin/admin.css");
 
   // Emplacement configurable du fichier logo et texte alternatif correct.
   assert.match(brand, /export const BRAND_LOGO_PATH = "\/images\/logo\.(svg|png)";/);
   assert.match(brand, /BRAND_LOGO_ALT = "Logo Global Shop Daloa";/);
 
-  // En-tête, pied de page et écran de confirmation de commande.
+  // Composant partagé : une seule implémentation, importée par la vitrine et l'admin.
+  assert.match(logoComponent, /export default function BrandLogo/);
+  assert.match(logoComponent, /from "\.\/brand\.js"/);
+  assert.match(logoComponent, /src=\{BRAND_LOGO_PATH\}/);
+  assert.match(logoComponent, /alt=\{BRAND_LOGO_ALT\}/);
+  assert.match(logoComponent, /onError=\{\(\) => setUnavailable\(true\)\}/);
+  assert.doesNotMatch(app, /function BrandLogo\(/);
+  assert.match(app, /import BrandLogo from "\.\/BrandLogo\.jsx";/);
+
+  // En-tête, pied de page et écran de confirmation de commande (vitrine).
   assert.ok(
     (app.match(/<BrandLogo \/>/g) || []).length >= 3,
-    "BrandLogo should be used on at least three screens",
+    "BrandLogo should be used on at least three storefront screens",
   );
 
-  // Repli monogramme si le fichier est absent, favicon automatique avec repli.
-  assert.match(app, /className="brand-symbol"/);
+  // Repli monogramme côté vitrine, repli « GS » dans l'en-tête admin.
+  assert.match(logoComponent, /className="brand-symbol"/);
+  assert.match(adminApp, /import BrandLogo from "\.\.\/BrandLogo\.jsx";/);
+  assert.match(
+    adminApp,
+    /<BrandLogo className="admin-logo" fallback=\{<span className="admin-mark">GS<\/span>\} \/>/,
+  );
+  assert.match(adminCss, /\.admin-logo\s*\{/);
+
+  // Favicon automatique avec repli.
   assert.match(app, /link\[rel="icon"\]/);
   assert.match(app, /favicon\.href = "\/favicon\.svg"/);
 

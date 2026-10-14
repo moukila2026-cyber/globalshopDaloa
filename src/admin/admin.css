@@ -206,6 +206,12 @@ code {
   align-items: center;
   gap: 11px;
 }
+.admin-logo {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
 .admin-mark {
   display: grid;
   place-items: center;
