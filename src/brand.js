@@ -1,4 +1,3 @@
-// Replace public/images/logo.svg with the official artwork supplied by Global Shop.
-// For a high-resolution PNG, change this one path to "/images/logo.png".
-export const BRAND_LOGO_PATH = "/images/logo.svg";
+// Logo officiel : public/images/logo.png (fond transparent, carré 1024 px).
+export const BRAND_LOGO_PATH = "/images/logo.png";
 export const BRAND_LOGO_ALT = "Logo Global Shop Daloa";
