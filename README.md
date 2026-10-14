@@ -85,7 +85,7 @@ Connexion : le mot de passe est envoyé en POST sur `/api/admin/session` (limit�
 
 **Nouvelles** (à confirmer par téléphone) → **En préparation** → **Terminées** (livrées ou annulées). Chaque carte affiche la référence, la date et l'heure d'Abidjan, le client (téléphone cliquable), l'adresse, le créneau de livraison, le détail des articles et le montant à encaisser. Actions : avancer le statut, annuler (**le stock réservé est alors restitué dans la même transaction**), ouvrir WhatsApp ou appeler, copier le récapitulatif. La liste se rafraîchit automatiquement toutes les minutes.
 
-**Annulation** : une commande **livrée** ne peut plus être annulée. Le bouton « Annuler (stock restitué) » n'est pas affiché pour elle, et le serveur refuse la transition (réponse 409) : la marchandise a été remise au client, son stock n'est donc pas restitué. Une commande en attente ou en préparation peut être annulée ; son stock réservé est alors restitué dans la même transaction.
+**Annulation** : le bouton « Annuler (stock restitué) » n'est proposé que dans la colonne « Terminées », et il n'est pas affiché pour une commande **livrée**. Le serveur refuse aussi l'annulation d'une commande livrée (réponse 409) : la marchandise a été remise au client, son stock n'est donc pas restitué. L'annulation d'une commande en attente ou en préparation reste possible par l'API (`PATCH /api/admin/orders/:id`) ; son stock réservé est alors restitué dans la même transaction. Aucun bouton d'annulation n'est proposé pour ces commandes dans l'interface à ce stade.
 
 ### Produits, promotions et photos
 
