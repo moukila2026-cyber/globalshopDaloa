@@ -543,7 +543,7 @@ function OrderCard({order, whatsappNumber, onStatus, busy}) {
             {onStatus.advance.label} <ArrowRight size={14} />
           </button>
         )}
-        {onStatus.cancel && order.status !== "annulee" && (
+        {onStatus.cancel && order.status !== "annulee" && order.status !== "livree" && (
           <button className="admin-button danger small" disabled={busy} onClick={() => onStatus.onCancel(order)}>
             <Ban size={14} /> Annuler (stock restitué)
           </button>

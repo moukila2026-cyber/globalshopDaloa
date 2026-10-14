@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS visitor_heartbeats (
 const SCHEMA_LOCK_KEY = 727001;
 
 export class StockError extends Error {}
+// Transition refusée par la règle métier (ex. annuler une commande déjà livrée).
+export class OrderStateError extends Error {}
 
 // Base absente ou injoignable : l'API répond 503 avec ce message (jamais de 500 muet).
 export class DatabaseUnavailableError extends Error {
@@ -542,6 +544,8 @@ export function createStore(pool) {
           return null;
         }
         const previous = current.status;
+        // Une commande livrée a déjà été remise au client : son stock ne se restitue pas.
+        if (status === 'annulee' && previous === 'livree') throw new OrderStateError('Une commande livrée ne peut plus être annulée.');
         if (status === 'annulee' && previous !== 'annulee') {
           for (const line of [...(current.payload?.lines ?? [])].sort((a, b) => a.id.localeCompare(b.id))) {
             await client.query('UPDATE stock SET quantity = quantity + $2 WHERE id = $1', [line.id, line.quantity]);
